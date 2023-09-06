@@ -19,6 +19,42 @@ import pickle
 import gzip
 from pathlib import Path
 
+# select cells to delete with random seed
+def select_cells_missing(sn_adata, num_cells_missing, random_seed):
+    if random_seed is not None:
+        np.random.seed(random_seed)
+    
+    # get the unique cell types in sn_adata
+    cell_types = sn_adata.obs['cell_types'].unique()
+    
+    # initialize the dictionary to store the selected cells for each num_cells_missing
+    cells_to_miss = {}
+    
+    # sort num_cells_missing in ascending order
+    num_cells_missing.sort()
+    
+    # initialize an empty set to keep track of selected cells for all num_cells_missing values
+    selected_cells = set()
+    
+    for num in num_cells_missing:
+        # ensure num is within the range of cell types
+        if num >= len(cell_types):
+            raise ValueError("num_cells_missing exceeds the number of available cell types.")
+        
+        # randomly select num cells that haven't been selected before
+        num_to_select = num - len(selected_cells)
+        if num_to_select > 0:
+            available_cells = list(set(range(len(cell_types))) - selected_cells)
+            if num_to_select >= len(available_cells):
+                selected = available_cells
+            else:
+                selected = np.random.choice(available_cells, num_to_select, replace=False)
+            selected_cells.update(selected)
+            cells_to_miss[num] = list(selected_cells)  # store selected cells as a list
+    
+    return cells_to_miss
+
+#the following functions are adapted from https://github.com/greenelab/sc_bulk_ood/blob/main/sc_preprocessing/sc_preprocess.py
 # cell type specific pseudobulk
 def get_cell_type_sum(in_adata, cell_type_id, num_samples):
 
@@ -27,11 +63,6 @@ def get_cell_type_sum(in_adata, cell_type_id, num_samples):
 
   # now to the sampling
   cell_sample = sk.utils.resample(cell_df, n_samples = num_samples, replace=True)
-
-  # add  poisson noise
-  #dense_X = cell_sample.X.todense()
-  #noise_mask = np.random.poisson(dense_X+1)
-  #dense_X = dense_X + noise_mask
 
   sum_per_gene = cell_sample.X.sum(axis=0)
 
@@ -357,53 +388,6 @@ def make_prop_and_sum_bulk(in_adata, num_samples, num_cells, use_true_prop, cell
 
   return (total_prop, total_expr, test_prop, test_expr)  
 
-def read_diva_files(data_path, file_idx, file_name, use_test, sig_name):
-
-    pseudo_str = "Train_pseudo"
-    prop_str = "Train_prop"
-    if use_test == True:
-      pseudo_str = "Test_pseudo"
-      prop_str = "Test_prop"
-     
-
-    if file_idx is not None:
-      pbmc_rep1_pseudobulk_file = os.path.join(data_path, f"{file_name}_{pseudo_str}_{file_idx}.pkl")
-      pbmc_rep1_prop_file = os.path.join(data_path, f"{file_name}_{prop_str}_{file_idx}.pkl")
-    else:
-      pbmc_rep1_pseudobulk_file = os.path.join(data_path, f"{file_name}_pseudo.pkl")
-      pbmc_rep1_prop_file = os.path.join(data_path, f"{file_name}_prop.pkl")
-
-    pbmc_rep1_gene_file = os.path.join(data_path, f"{file_name}_genes.pkl")
-    pbmc_rep1_sig_file = os.path.join(data_path, f"{sig_name}_sig.pkl")
-
-    pseudobulk_path = Path(pbmc_rep1_pseudobulk_file)
-    prop_path = Path(pbmc_rep1_prop_file)
-    gene_path = Path(pbmc_rep1_gene_file)
-    sig_path = Path(pbmc_rep1_sig_file)
-
-    prop_df = pickle.load( open( prop_path, "rb" ) )
-    pseudobulks_df = pickle.load( open( pseudobulk_path, "rb" ) )
-    gene_df = pickle.load( open( gene_path, "rb" ) )
-    sig_df = pickle.load( open( sig_path, "rb" ) )
-
-    return (pseudobulks_df, prop_df, gene_df, sig_df)
-
-def read_all_diva_files(data_path, idx_range, file_name, use_test=False):
-
-    X_concat = None
-
-    for idx in idx_range:
-        X_train, Y_train, gene_df, _ = read_diva_files(data_path, idx, file_name, use_test)
-        X_train.columns = gene_df
-
-        if X_concat is None:
-            X_concat, Y_concat = X_train, Y_train
-        else:
-            X_concat = pd.concat([X_concat, X_train])
-            Y_concat = pd.concat([Y_concat, Y_train])
-
-    return (X_concat, Y_concat, gene_df)
-
 def write_cs_bp_files(cybersort_path, out_file_id, sn_sc_a_df, X_train, patient_idx=0):
     # write out the scRNA-seq signature matrix
     sig_out_file = os.path.join(cybersort_path, f"{out_file_id}_{patient_idx}_cibersort_sig.tsv.gz")
@@ -421,176 +405,6 @@ def write_cs_bp_files(cybersort_path, out_file_id, sn_sc_a_df, X_train, patient_
 
     X_train.to_csv(sig_out_path, sep='\t',header=True)  
     return(X_train, sn_sc_a_df)
-
-def read_single_kang_pseudobulk_file(data_path, sample_id, stim_status, isTraining, file_name):
-
-  pseudobulk_file = os.path.join(data_path, f"{file_name}_{sample_id}_{stim_status}_{isTraining}_pseudo_splits.pkl")
-  prop_file = os.path.join(data_path, f"{file_name}_{sample_id}_{stim_status}_{isTraining}_prop_splits.pkl")
-
-  gene_file = os.path.join(data_path, f"{file_name}_genes.pkl")
-  sig_file = os.path.join(data_path, f"{file_name}_sig.pkl")
-
-  pseudobulk_path = Path(pseudobulk_file)
-  prop_path = Path(prop_file)
-  gene_path = Path(gene_file)
-  sig_path = Path(sig_file)
-
-  prop_df = pickle.load( open( prop_path, "rb" ) )
-  pseudobulks_df = pickle.load( open( pseudobulk_path, "rb" ) )
-  gene_df = pickle.load( open( gene_path, "rb" ) )
-  sig_df = pickle.load( open( sig_path, "rb" ) )
-
-  num_samps = pseudobulks_df.shape[0] 
-  samp_type = ["bulk"]*num_samps
-  if sample_id == "1015" or sample_id == "1256":
-    cell_prop_type = ["random"]*1000+["cell_type_specific"]*1000
-    samp_type = ["sc_ref"]*2000
-  elif isTraining == "Train":
-    cell_prop_type = ["realistic"]*num_samps
-  else:
-    cell_prop_type = ["realistic"]*100+["cell_type_specific"]*1000
-
-  metadata_df = pd.DataFrame(data = {"sample_id":[sample_id]*num_samps, 
-                                    "stim":[stim_status]*num_samps,
-                                    "isTraining":[isTraining]*num_samps,
-                                    "cell_prop_type":cell_prop_type,
-                                    "samp_type":samp_type,})
-
-  return (pseudobulks_df, prop_df, gene_df, sig_df, metadata_df)
-
-def read_all_kang_pseudobulk_files(data_path, file_name, num_bulks_training=10):
-
-  sample_order = ['1015', '1256', '1488', '1244', '1016', '101', '1039', '107']
-  stim_order = ['STIM', 'CTRL']
-  train_order = ['Train', 'Test']
-
-  X_concat = None
-  Y_concat = None
-  meta_concat = None
-
-  for curr_samp in sample_order:
-    if curr_samp == '1015' or curr_samp == '1256':
-      pseudobulks_df, prop_df, gene_df, sig_df, metadata_df = read_single_kang_pseudobulk_file(data_path, curr_samp, "CTRL", "Train", file_name)
-
-      if X_concat is None:
-        X_concat, Y_concat, meta_concat = pseudobulks_df, prop_df, metadata_df
-      else:
-        X_concat = pd.concat([X_concat, pseudobulks_df])
-        Y_concat = pd.concat([Y_concat, prop_df])
-        meta_concat = pd.concat([meta_concat, metadata_df])
-
-      continue
-    print(curr_samp)
-    for curr_stim in stim_order:
-      print(curr_stim)
-
-      for curr_train in train_order:
-        print(curr_train)
-
-        pseudobulks_df, prop_df, gene_df, sig_df, metadata_df = read_single_kang_pseudobulk_file(data_path, curr_samp, curr_stim, curr_train, file_name)
-
-        # subsample the number of bulks used in training
-        if curr_train == "Train":
-          subsamp_idx = np.random.choice(range(pseudobulks_df.shape[0]), num_bulks_training)
-          pseudobulks_df = pseudobulks_df.iloc[subsamp_idx]
-          prop_df = prop_df.iloc[subsamp_idx]
-          metadata_df = metadata_df.iloc[subsamp_idx]
-
-        X_concat = pd.concat([X_concat, pseudobulks_df])
-        Y_concat = pd.concat([Y_concat, prop_df])
-        meta_concat = pd.concat([meta_concat, metadata_df])
-
-  return (X_concat, Y_concat, gene_df, meta_concat)
-
-def read_single_mk_pseudobulk_file(data_path, isTraining, file_name, sig_file, idx):
-
-  pseudobulk_file = os.path.join(data_path, f"{file_name}_{isTraining}_pseudo_{idx}.pkl")
-
-  gene_file = os.path.join(data_path, f"{file_name}_genes.pkl")
-
-  sig_file = os.path.join(data_path, f"{sig_file}")
-
-  pseudobulk_path = Path(pseudobulk_file)
-  gene_path = Path(gene_file)
-  sig_path = Path(sig_file)
-
-  pseudobulks_df = pickle.load( open( pseudobulk_path, "rb" ) )
-  gene_df = pickle.load( open( gene_path, "rb" ) )
-  sig_df = pickle.load( open( sig_path, "rb" ) )
-
-  num_samps = pseudobulks_df.shape[0] 
-
-  if isTraining == "Train":
-    if idx >= 10: #only some have prop files, this is the bulks
-      #opening prop0 to fill with nans
-      prop_file = os.path.join(data_path, f"{file_name}_{isTraining}_prop_0.pkl")
-      prop_path = Path(prop_file)
-      prop_df = pickle.load( open( prop_path, "rb" ) )
-      #filling with nans
-      prop_df = pd.DataFrame(columns = prop_df.columns, index=prop_df.index, data= np.nan)
-      stim = "CTRL"
-      sample_id = 0 
-      cell_prop_type = ["realistic"]*num_samps
-      samp_type = "bulk"
-    elif idx <= 9: #these are the sn pseudos
-      sample_id = idx
-      samp_type = "single"
-      stim = 'STIM'
-      prop_file = os.path.join(data_path, f"{file_name}_{isTraining}_prop_{idx}.pkl")
-      prop_path = Path(prop_file)
-      prop_df = pickle.load( open( prop_path, "rb" ) )
-      cell_prop_type = ["realistic"]*100+["cell_type_specific"]*1100+['random']*1000
-  else: #this are testing single-cell pseudos. 
-        stim = 'CTRL'
-        sample_id = idx
-        samp_type = "single"
-        prop_file = os.path.join(data_path, f"{file_name}_{isTraining}_prop_{idx}.pkl")
-        prop_path = Path(prop_file)
-        prop_df = pickle.load( open( prop_path, "rb" ) )
-        cell_prop_type = ["realistic"]*100+["cell_type_specific"]*1100+['random']*1000
-
-  metadata_df = pd.DataFrame(data = {"sample_id":[sample_id]*num_samps, 
-                                    "stim":[stim]*num_samps,
-                                    "isTraining":[isTraining]*num_samps,
-                                    "cell_prop_type":cell_prop_type,
-                                    "samp_type":[samp_type]*num_samps,})
-
-  return (pseudobulks_df, prop_df, gene_df, sig_df, metadata_df)
-
-def read_all_mk_pseudobulk_files(data_path, file_name, num_bulks_training, sig_file):
-
-  train_order = ['Train', 'Test']
-
-  X_concat = None
-  Y_concat = None
-  meta_concat = None
-
-  for curr_train in train_order: 
-
-    print(curr_train)
-    if curr_train == "Train":
-      num = range(0,25) #number of files. 
-    else:
-      num = range(0,10) #number of files.
-
-    for idx in num:
-
-      pseudobulks_df, prop_df, gene_df, sig_df, metadata_df = read_single_mk_pseudobulk_file(data_path, curr_train, file_name, sig_file, idx)
-      
-      # subsample the number of bulks used in training
-      if curr_train == "Train":
-        #indexes = metadata_df.groupby("stim").sample(int(num_bulks_training/2))
-        #subsamp_idx = indexes.index
-        subsamp_idx = np.random.choice(range(pseudobulks_df.shape[0]), num_bulks_training)
-        pseudobulks_df = pseudobulks_df.iloc[subsamp_idx]
-        prop_df = prop_df.iloc[subsamp_idx]
-        metadata_df = metadata_df.loc[subsamp_idx]
-
-      X_concat = pd.concat([X_concat, pseudobulks_df])
-      Y_concat = pd.concat([Y_concat, prop_df])
-      meta_concat = pd.concat([meta_concat, metadata_df])
-
-  return (X_concat, Y_concat, gene_df, meta_concat)
 
 def get_corr_prop_matrix(num_samp, real_prop, cell_order, min_corr=0.8):
 

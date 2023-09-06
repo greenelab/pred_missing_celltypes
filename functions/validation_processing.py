@@ -79,7 +79,6 @@ def select_bulks(bulk_type, num_bulks_touse, num_idx_total, res_name, path, bulk
             print("0 in proportion, redo bulk selection")    
     return prop_df, pseudo_df
 
-
 #helper function to calculate nnls and residual
 def calc_nnls(all_refs, prop_df, pseudo_df, num_missing_cells, cells_to_miss):
     
@@ -139,7 +138,6 @@ def calc_nnls(all_refs, prop_df, pseudo_df, num_missing_cells, cells_to_miss):
 
     return calc_prop_tot, calc_res_tot, custom_res_tot, comparison_prop_tot, missing_cell_tot     
 
-
 # for each sample calculate the transformation / projection in PCA space
 def get_samp_transform_vec_VAE(X_full, meta_df, start_samp, end_samp, encoder, decoder, batch_size):
     # get the perturbation latent code
@@ -168,7 +166,8 @@ def get_samp_transform_vec_VAE(X_full, meta_df, start_samp, end_samp, encoder, d
     proj_train = train_start_med - train_end_med
     return proj_train
 
-#function from https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
+#the following functions are adapted from:
+# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
 def get_pert_transform_vec_VAE(X_full, meta_df, curr_samp, encoder, decoder, batch_size):
 
     # get the perturbation latent code
@@ -200,7 +199,6 @@ def get_pert_transform_vec_VAE(X_full, meta_df, curr_samp, encoder, decoder, bat
 
     return proj_train
 
-#function from https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
 def calc_VAE_perturbation(X_full, meta_df, encoder, decoder, 
                            scaler, batch_size):
     # get the perturbation latent code
@@ -271,8 +269,6 @@ def calc_VAE_perturbation(X_full, meta_df, encoder, decoder,
 
     return (final_meta_df, decoded_0_0, decoded_0_1)
 
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
 def get_samp_transform_vec_PCA(X_full, meta_df, start_samp, end_samp, fit):
     # get the perturbation latent code
     idx_start_train = np.logical_and(meta_df.stim == "CTRL", meta_df.isTraining == "Train")
@@ -297,8 +293,6 @@ def get_samp_transform_vec_PCA(X_full, meta_df, start_samp, end_samp, fit):
     proj_train = train_start_med - train_end_med
     return(proj_train)
 
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
 def get_pert_transform_vec_PCA(X_full, meta_df, curr_samp, fit):
     # get the perturbation latent code
     idx_stim_train = np.logical_and(meta_df.samp_type == "bulk", meta_df.isTraining == "Train")
@@ -325,8 +319,6 @@ def get_pert_transform_vec_PCA(X_full, meta_df, curr_samp, fit):
     proj_train = train_stim_med - train_ctrl_med
     return(proj_train)
 
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
 def calc_PCA_perturbation(X_full, meta_df, scaler, fit):
 
     # get the perturbation latent code
@@ -398,8 +390,6 @@ def calc_PCA_perturbation(X_full, meta_df, scaler, fit):
 
     return (final_meta_df, decoded_0_0, decoded_0_1)
 
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
 def calc_CVAE_perturbation(X_full, meta_df, encoder, decoder, 
                            scaler, batch_size, 
                            label_1hot_full, drug_1hot_full):
@@ -457,182 +447,6 @@ def calc_CVAE_perturbation(X_full, meta_df, encoder, decoder,
 
     return (ctrl_test_meta_df, decoded_0_0, decoded_0_1)
 
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
-def calc_buddi_perturbation(meta_df, X_full, scaler, classifier, encoder_unlab, decoder, batch_size):
-
-    # get the perturbation latent code
-    idx_stim_test = np.logical_and(meta_df.stim == "STIM", meta_df.isTraining == "Test")
-    idx_stim_test = np.where(idx_stim_test)[0]
-    stim_test_meta_df = meta_df.iloc[idx_stim_test]
-
-    # duplicate to we have correct batch size
-    len_stim_test = len(idx_stim_test)
-    idx_stim_test = np.tile(idx_stim_test, 5)
-
-    X_pert = np.copy(X_full)
-    X_pert = X_pert[idx_stim_test,]
-
-    prop_outputs = classifier.predict(X_pert, batch_size=batch_size)
-    Y_pert = np.copy(prop_outputs)
-    Y_pert = np.argmax(Y_pert, axis=1)
-
-    z_slack, mu_slack, l_sigma_slack, z_rot, mu_rot, l_sigma_rot, z_drug_perturb, mu_drug, l_sigma_drug = encoder_unlab.predict(X_pert, batch_size=batch_size)
-
-    # get the original perturbation output
-    z_concat_perturb = np.hstack([z_slack, prop_outputs, z_rot, z_drug_perturb])
-    decoded_1_1 = decoder.predict(z_concat_perturb, batch_size=batch_size)
-    decoded_1_1 = scaler.inverse_transform(decoded_1_1)
-    decoded_1_1 = decoded_1_1[range(len_stim_test),]
-
-    # now get ctrl test cells
-    idx_ctrl_test = np.logical_and(meta_df.stim == "CTRL", meta_df.isTraining == "Test")
-    idx_ctrl_test = np.where(idx_ctrl_test)[0]
-    ctrl_test_meta_df = meta_df.iloc[idx_ctrl_test]
-
-
-    # duplicate to we have correct batch size
-    len_ctrl_test = len(idx_ctrl_test)
-    idx_ctrl_test = np.tile(idx_ctrl_test, 5)
-
-
-    X_temp = np.copy(X_full)
-    X_temp = X_temp[idx_ctrl_test,]
-
-    prop_outputs = classifier.predict(X_temp, batch_size=batch_size)
-    Y_temp = np.copy(prop_outputs)
-    Y_temp = np.argmax(Y_temp, axis=1)
-
-    # get the perturbation latent code
-
-    # now get each of the latent codes
-    z_slack, mu_slack, l_sigma_slack, z_rot, mu_rot, l_sigma_rot, z_drug, mu_drug, l_sigma_drug = encoder_unlab.predict(X_temp, batch_size=batch_size)
-
-    # get the stim latent codes
-    z_drug_perturb = z_drug_perturb[np.random.choice(z_drug_perturb.shape[0], X_temp.shape[0], replace=True)]
-
-
-    # now concatenate together and add the stim codes to the latent
-    z_concat_unlab_perturb = np.hstack([z_slack, prop_outputs, z_rot, z_drug_perturb])
-    decoded_0_1 = decoder.predict(z_concat_unlab_perturb, batch_size=batch_size)
-    decoded_0_1 = scaler.inverse_transform(decoded_0_1)
-    decoded_0_1 = decoded_0_1[range(len_stim_test),]
-
-    # now concatenate together and add the stim codes to the latent
-    z_concat_unlab_perturb = np.hstack([z_slack, prop_outputs, z_rot, z_drug])
-    decoded_0_0 = decoder.predict(z_concat_unlab_perturb, batch_size=batch_size)
-    decoded_0_0 = scaler.inverse_transform(decoded_0_0)
-    decoded_0_0 = decoded_0_0[range(len_ctrl_test),]
-
-    return (stim_test_meta_df, ctrl_test_meta_df, decoded_1_1, decoded_0_1, decoded_0_0)
-
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
-def subset_sample_celltype_perturbation(X_full, decoded_0_0, decoded_0_1, scaler, samp_interest, cell_prop_type, meta_df, ctrl_test_meta_df, cell_type_interest=None):
-
-    # get the real data
-    X_tmp = np.copy(X_full)
-    X_tmp = scaler.inverse_transform(X_tmp)
-
-    # get the ground truth
-    real_stimulated_idx = np.logical_and(meta_df.stim == "STIM", meta_df.isTraining == "Test")
-    real_stimulated_idx = np.logical_and(real_stimulated_idx, meta_df.cell_prop_type == cell_prop_type)
-    real_stimulated_idx = np.logical_and(real_stimulated_idx, meta_df.sample_id == samp_interest)
-
-    if cell_type_interest is not None:
-        real_stimulated_idx = np.logical_and(real_stimulated_idx, meta_df.Y_max == cell_type_interest)
-    real_stimulated_idx = np.where(real_stimulated_idx)[0]
-    real_original_stim = X_tmp[real_stimulated_idx]
-
-
-    real_ctrl_idx = np.logical_and(meta_df.stim == "CTRL", meta_df.isTraining == "Test")
-    real_ctrl_idx = np.logical_and(real_ctrl_idx, meta_df.cell_prop_type == cell_prop_type)
-    real_ctrl_idx = np.logical_and(real_ctrl_idx, meta_df.sample_id == samp_interest)
-    if cell_type_interest is not None:
-        real_ctrl_idx = np.logical_and(real_ctrl_idx, meta_df.Y_max == cell_type_interest)
-    real_ctrl_idx = np.where(real_ctrl_idx)[0]
-    real_original_ctrl = X_tmp[real_ctrl_idx]
-
-
-    # get the reconstructed 
-    recon_Zstim_idx = np.logical_and(ctrl_test_meta_df.stim == "CTRL", ctrl_test_meta_df.isTraining == "Test")
-    recon_Zstim_idx = np.logical_and(recon_Zstim_idx, ctrl_test_meta_df.cell_prop_type == cell_prop_type)
-    recon_Zstim_idx = np.logical_and(recon_Zstim_idx, ctrl_test_meta_df.sample_id == samp_interest)
-    if cell_type_interest is not None:
-        recon_Zstim_idx = np.logical_and(recon_Zstim_idx, ctrl_test_meta_df.Y_max == cell_type_interest)
-    recon_Zstim_idx = np.where(recon_Zstim_idx)[0]
-    projected_Zstimulated = decoded_0_1[recon_Zstim_idx]
-    projected_ctrl = decoded_0_0[recon_Zstim_idx]
-
-    return (real_original_stim, real_original_ctrl, projected_Zstimulated, projected_ctrl)
-
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
-def calc_expr_log2FC_r2(real_ctrl, real_stim, proj_ctrl, proj_stim):
-
-    real_stim_med = np.median(real_stim, axis=0)
-    proj_stim_med = np.median(proj_stim, axis=0)
-
-    expr_r2 = pearsonr(real_stim_med, proj_stim_med)[0]
-
-
-    real_ctrl = np.median(real_ctrl, axis=0)+1
-    real_stim = np.median(real_stim, axis=0)+1
-    real_log2FC = np.log2(real_stim/real_ctrl)
-
-    proj_ctrl = np.median(proj_ctrl, axis=0)+1
-    proj_stim = np.median(proj_stim, axis=0)+1
-    proj_log2FC = np.log2(proj_stim/proj_ctrl)
-
-
-    log2FC_r2 = pearsonr(real_log2FC, proj_log2FC)[0]
-
-    # do the same for bottom 30, mid and top
-    proj_ctrl_quantiles = np.quantile(proj_ctrl, [0.33, 0.66])
-    bottom_30 = np.where(proj_ctrl < proj_ctrl_quantiles[0])
-    mid_30 = np.where(np.logical_and(proj_ctrl > proj_ctrl_quantiles[0], proj_ctrl < proj_ctrl_quantiles[1]))
-    top_30 = np.where(proj_ctrl > proj_ctrl_quantiles[1])
-
-    log2FC_r2_bottom = pearsonr(real_log2FC[bottom_30], proj_log2FC[bottom_30])[0]
-    log2FC_r2_mid = pearsonr(real_log2FC[mid_30], proj_log2FC[mid_30])[0]
-    log2FC_r2_top = pearsonr(real_log2FC[top_30], proj_log2FC[top_30])[0]
-
-    log2FC_rmse = np.sqrt(np.mean((proj_log2FC-real_log2FC)**2))
-
-    return (expr_r2, log2FC_r2, log2FC_r2_bottom, log2FC_r2_mid, log2FC_r2_top, log2FC_rmse)
-
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
-def get_TP_FP_DE_genes(projected_Zstimulated, projected_ctrl, DE_table, gene_cutoff=100, pvalue_cutoff=0.01):
-    test_res = ttest_ind(projected_Zstimulated, projected_ctrl)
-    top_test_res = union_genes[np.argsort(test_res.pvalue)[0:gene_cutoff]]
-
-    DE_table = DE_table.sort_values(by=['padj'])
-    DE_table.gene_symbol.to_list()[0:gene_cutoff]
-
-    num_intersect_genes = len(np.intersect1d(top_test_res, DE_table))
-
-    num_DE = len(np.where(test_res.pvalue < pvalue_cutoff)[0])
-
-    return(num_intersect_genes, num_DE)
-
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
-def get_pca_for_plotting(encodings):
-
-    from sklearn.decomposition import PCA
-
-    fit = PCA(n_components=2)
-    pca_results = fit.fit_transform(encodings)
-
-    plot_df = pd.DataFrame(pca_results[:,0:2])
-    print(pca_results.shape)
-    print(plot_df.shape)
-    plot_df.columns = ['PCA_0', 'PCA_1']
-    return plot_df
-
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
 def plot_pca(plot_df, color_vec, ax, title="", alpha=0.1):
 
     plot_df['Y'] = color_vec
@@ -649,8 +463,6 @@ def plot_pca(plot_df, color_vec, ax, title="", alpha=0.1):
     ax.set_title(title)
     return g
 
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
 def get_tsne_for_plotting(encodings):
     tsne = TSNE(n_components=2, verbose=1, perplexity=20, n_iter=500)
     tsne_results = tsne.fit_transform(encodings)
@@ -661,8 +473,6 @@ def get_tsne_for_plotting(encodings):
     plot_df.columns = ['tsne_0', 'tsne_1']
     return plot_df
 
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
 def plot_tsne(plot_df, color_vec, ax, title=""):
 
     plot_df['Y'] = color_vec
@@ -680,9 +490,6 @@ def plot_tsne(plot_df, color_vec, ax, title=""):
     return g
 
 import umap
-
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
 def get_umap_for_plotting(encodings):
     fit = umap.UMAP()
     umap_results = fit.fit_transform(encodings)
@@ -693,8 +500,6 @@ def get_umap_for_plotting(encodings):
     plot_df.columns = ['umap_0', 'umap_1']
     return plot_df
 
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
 def plot_umap(plot_df, color_vec, ax, title="", alpha=0.3):
 
     plot_df['Y'] = color_vec
@@ -711,8 +516,6 @@ def plot_umap(plot_df, color_vec, ax, title="", alpha=0.3):
     ax.set_title(title)
     return g
 
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
 def plot_expr_corr(xval, yval, ax, title, xlab, ylab, class_id, max_val=2700, min_val=0, alpha=0.5):
 
     plot_df = pd.DataFrame(list(zip(xval, yval)))
@@ -731,27 +534,6 @@ def plot_expr_corr(xval, yval, ax, title, xlab, ylab, class_id, max_val=2700, mi
 
     ax.set_title(title)
     return g
-
-#function from 
-# https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
-def plot_MA(xval, yval, ax, title, xlab, ylab, class_id, max_val=2700, min_val=0, alpha=0.5):
-
-    plot_df = pd.DataFrame(list(zip(xval, yval)))
-    plot_df.columns = [xlab, ylab]
-
-    g = sns.scatterplot(
-        x=xlab, y=ylab,
-        data=plot_df,ax=ax,
-        hue=class_id,
-        alpha=alpha
-    )
-    g.set(ylim=(min_val, max_val))
-    g.set(xlim=(min_val, max_val))
-
-
-    ax.set_title(title)
-    return g
-
 
 #Fcn to make table of cell proportions
 def make_prop_table(adata, obs):
@@ -784,23 +566,3 @@ def make_prop_table(adata, obs):
 #funtion from https://github.com/greenelab/sc_bulk_ood/blob/main/evaluation_experiments/pbmc/pbmc_experiment_perturbation.ipynb
 def mean_sqr_error(single1, single2):
   return np.mean((single1 - single2)**2)    
-
-#function adapted from https://github.com/greenelab/sc_bulk_ood/blob/main/sc_preprocessing/sc_preprocess.py
-def write_cs_bp_files(cybersort_path, out_file_id, df, X_train, patient_idx=0):
-    # write out the scRNA-seq signature matrix
-    sig_out_file = os.path.join(cybersort_path, f"{out_file_id}_{patient_idx}_cibersort_signatmat.tsv.gz")
-    sig_out_path = Path(sig_out_file)
-    df = df.transpose()
-
-    # cast from matrix to pd
-    df = pd.DataFrame(df)
-
-    df.to_csv(sig_out_path, sep='\t',header=False)
-
-    # write out the bulk RNA-seq mixture matrix
-    sig_out_file = os.path.join(cybersort_path, f"{out_file_id}_{patient_idx}_cibersort_mixture.tsv.gz")
-    sig_out_path = Path(sig_out_file)
-
-    X_train.to_csv(sig_out_path, sep='\t',header=True)
-
-    return(X_train, df)    
