@@ -29,6 +29,8 @@ def select_cells_missing(sn_adata, num_cells_missing, random_seed):
     
     # initialize the dictionary to store the selected cells for each num_cells_missing
     cells_to_miss = {}
+    if 0 in num_cells_missing:
+      cells_to_miss[0] = []
     
     # sort num_cells_missing in ascending order
     num_cells_missing.sort()

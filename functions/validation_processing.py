@@ -1,5 +1,3 @@
-#The following functions come 
-
 # general imports
 import warnings
 import numpy as np
@@ -44,8 +42,9 @@ import pickle
 from pathlib import Path
 
 #helper function to open pseudo files and selecting some bulks depending on needs
-def select_bulks(bulk_type, num_bulks_touse, num_idx_total, res_name, path, bulk_range):
+def select_bulks(bulk_type, num_bulks_touse, num_idx_total, res_name, path, bulk_range, rs):
     #selecting bulks and props for deconv.
+    np.random.seed(rs) 
     prop_df = pd.DataFrame()
     pseudo_df = pd.DataFrame()
     for idx in range(0,num_idx_total):
@@ -138,161 +137,40 @@ def calc_nnls(all_refs, prop_df, pseudo_df, num_missing_cells, cells_to_miss):
 
     return calc_prop_tot, calc_res_tot, custom_res_tot, comparison_prop_tot, missing_cell_tot     
 
-# for each sample calculate the transformation / projection in PCA space
-def get_samp_transform_vec_VAE(X_full, meta_df, start_samp, end_samp, encoder, decoder, batch_size):
-    # get the perturbation latent code
-    idx_start_train = np.logical_and(meta_df.stim == "CTRL", meta_df.isTraining == "Train")
-    idx_start_train = np.logical_and(idx_start_train, meta_df.sample_id == start_samp)
-    idx_start_train = np.where(idx_start_train)[0]
+#Fcn to make table of cell proportions
+def make_prop_table(adata, obs):
+    num_cell_counter = Counter(adata.obs[obs])
+    num_cells = list()
+    cell_types = list()
+    prop_cells = list()
+    tot_count = 0
+    tot_prop = 0
 
+    for cell in num_cell_counter:
+        num_cells.append(num_cell_counter[cell])
+        cell_types.append(cell)
+        tot_count = tot_count + num_cell_counter[cell]
 
-    idx_end_train = np.logical_and(meta_df.stim == "CTRL", meta_df.isTraining == "Train")
-    idx_end_train = np.logical_and(idx_end_train, meta_df.sample_id == end_samp)
-    idx_end_train = np.where(idx_end_train)[0]
-    idx_end_train = np.tile(idx_end_train, 50)
+    for cell in num_cell_counter:
+        proportion = num_cell_counter[cell] / tot_count
+        prop_cells.append(proportion)
+        tot_prop = tot_prop + proportion
 
-    X_start = X_full[idx_start_train]
-    mu_slack, z_slack = encoder.predict(X_start, batch_size=batch_size)
-    train_start = decoder.predict(mu_slack, batch_size=batch_size)
+    cell_types.append('Total')
+    num_cells.append(tot_count)
+    prop_cells.append(tot_prop)
+    table = {'Cell_Types': cell_types, 
+        'Num_Cells': num_cells, 
+        'Prop_Cells': prop_cells}
+    table = pd.DataFrame(table)
+    return table        
 
-    X_end = X_full[idx_end_train]
-    mu_slack, z_slack = encoder.predict(X_end, batch_size=batch_size)
-    train_end = decoder.predict(mu_slack, batch_size=batch_size)
-
-
-    train_start_med = np.median(train_start, axis=0)
-    train_end_med = np.median(train_end, axis=0)
-
-    proj_train = train_start_med - train_end_med
-    return proj_train
+#funtion from https://github.com/greenelab/sc_bulk_ood/blob/main/evaluation_experiments/pbmc/pbmc_experiment_perturbation.ipynb
+def mean_sqr_error(single1, single2):
+  return np.mean((single1 - single2)**2)    
 
 #the following functions are adapted from:
 # https://github.com/greenelab/sc_bulk_ood/blob/main/method_comparison/validation_plotting.py
-def get_pert_transform_vec_VAE(X_full, meta_df, curr_samp, encoder, decoder, batch_size):
-
-    # get the perturbation latent code
-    idx_stim_train = np.logical_and(meta_df.samp_type == "bulk", meta_df.isTraining == "Train")
-    idx_stim_train = np.logical_and(idx_stim_train, meta_df.stim == "STIM")
-    idx_stim_train = np.logical_and(idx_stim_train, meta_df.sample_id == curr_samp)
-    idx_stim_train = np.where(idx_stim_train)[0]
-    idx_stim_train = np.tile(idx_stim_train, 50)
-
-    idx_ctrl_train = np.logical_and(meta_df.samp_type == "bulk", meta_df.isTraining == "Train")
-    idx_ctrl_train = np.logical_and(idx_ctrl_train, meta_df.stim == "CTRL")
-    idx_ctrl_train = np.logical_and(idx_ctrl_train, meta_df.sample_id == curr_samp)
-    idx_ctrl_train = np.where(idx_ctrl_train)[0]
-    idx_ctrl_train = np.tile(idx_ctrl_train, 50)
-
-    X_ctrl = X_full[idx_ctrl_train]
-    mu_slack, z_slack = encoder.predict(X_ctrl, batch_size=batch_size)
-    train_ctrl = decoder.predict(mu_slack, batch_size=batch_size)
-
-    X_stim = X_full[idx_stim_train]
-    mu_slack, z_slack = encoder.predict(X_stim, batch_size=batch_size)
-    train_stim = decoder.predict(mu_slack, batch_size=batch_size)
-
-
-    train_stim_med = np.median(train_stim, axis=0)
-    train_ctrl_med = np.median(train_ctrl, axis=0)
-
-    proj_train = train_stim_med - train_ctrl_med
-
-    return proj_train
-
-def calc_VAE_perturbation(X_full, meta_df, encoder, decoder, 
-                           scaler, batch_size):
-    # get the perturbation latent code
-    idx_sc_ref = np.logical_and(meta_df.stim == "CTRL", meta_df.isTraining == "Train")
-    idx_sc_ref = np.logical_and(idx_sc_ref, meta_df.samp_type == "sc_ref")
-    idx_sc_ref = np.logical_and(idx_sc_ref, meta_df.cell_prop_type == "cell_type_specific")
-    idx_sc_ref = np.logical_and(idx_sc_ref, meta_df.sample_id == "1015")
-    idx_sc_ref = np.where(idx_sc_ref)[0]
-    sc_ref_meta_df = meta_df.iloc[idx_sc_ref]
-
-    X_sc_ref = np.copy(X_full)
-    X_sc_ref = X_sc_ref[idx_sc_ref,]
-
-    ## get the transformation vectors
-    proj_samp_dict = {}
-    proj_pert_dict = {}
-    start_samps = ['1015'] #['1015', '1256']
-    end_samps = ['1488', '1244', '1016', '101', '1039', '107']
-    for start_samp in start_samps:
-        for end_samp in end_samps:
-            proj_vec = get_samp_transform_vec_VAE(X_full, meta_df, start_samp, end_samp, encoder, decoder, batch_size)
-            proj_samp_dict[f"{start_samp}_{end_samp}"] = proj_vec
-    for curr_samp in end_samps:
-        proj_vec = get_pert_transform_vec_VAE(X_full, meta_df, curr_samp, encoder, decoder, batch_size)
-        proj_pert_dict[curr_samp] = proj_vec
-
-
-    # get the CTRL
-    mu_slack, z_slack = encoder.predict(X_sc_ref, batch_size=batch_size)
-    single_decoded_0_0 = decoder.predict(z_slack, batch_size=batch_size)
-    single_decoded_0_1 = np.copy(single_decoded_0_0)
-
-    # do the projections
-    decoded_0_0 = None
-    decoded_0_1 = None
-    final_meta_df = None
-    for curr_samp_end in end_samps:
-        curr_decoded_0_0 = single_decoded_0_0.copy()
-        curr_decoded_0_1 = single_decoded_0_1.copy()
-        curr_meta_df = sc_ref_meta_df.copy()
-        for curr_idx in range(X_sc_ref.shape[0]):
-            # project for each initial sample
-            curr_samp_start = curr_meta_df.iloc[curr_idx].sample_id
-            # project to sample
-            proj_samp_vec = proj_samp_dict[f"{curr_samp_start}_{curr_samp_end}"]
-            # project to perturbation
-            proj_pert_vec = proj_pert_dict[curr_samp_end]
-
-            curr_decoded_0_0[curr_idx] = curr_decoded_0_0[curr_idx] + proj_samp_vec
-            curr_decoded_0_1[curr_idx] = curr_decoded_0_0[curr_idx] + proj_pert_vec
-            curr_meta_df.iloc[curr_idx].sample_id = curr_samp_end
-            curr_meta_df.iloc[curr_idx].isTraining = "Test"
-
-        ### append new df
-        if final_meta_df is None:
-            decoded_0_0 = curr_decoded_0_0
-            decoded_0_1 = curr_decoded_0_1
-            final_meta_df = curr_meta_df
-        else:
-            decoded_0_0 = np.append(decoded_0_0, curr_decoded_0_0, axis=0)
-            decoded_0_1 = np.append(decoded_0_1, curr_decoded_0_1, axis=0)
-            final_meta_df = final_meta_df.append(curr_meta_df)
-
-    decoded_0_1 = scaler.inverse_transform(decoded_0_1)
-
-    decoded_0_0 = scaler.inverse_transform(decoded_0_0)
-
-
-    return (final_meta_df, decoded_0_0, decoded_0_1)
-
-def get_samp_transform_vec_PCA(X_full, meta_df, start_samp, end_samp, fit):
-    # get the perturbation latent code
-    idx_start_train = np.logical_and(meta_df.stim == "CTRL", meta_df.isTraining == "Train")
-    idx_start_train = np.logical_and(idx_start_train, meta_df.sample_id == start_samp)
-    idx_start_train = np.where(idx_start_train)[0]
-
-
-    idx_end_train = np.logical_and(meta_df.stim == "CTRL", meta_df.isTraining == "Train")
-    idx_end_train = np.logical_and(idx_end_train, meta_df.sample_id == end_samp)
-    idx_end_train = np.where(idx_end_train)[0]
-
-    X_start = X_full[idx_start_train]
-    train_start = fit.transform(X_start)
-
-    X_end = X_full[idx_end_train]
-    train_end = fit.transform(X_end)
-
-
-    train_start_med = np.median(train_start, axis=0)
-    train_end_med = np.median(train_end, axis=0)
-
-    proj_train = train_start_med - train_end_med
-    return(proj_train)
-
 def get_pert_transform_vec_PCA(X_full, meta_df, curr_samp, fit):
     # get the perturbation latent code
     idx_stim_train = np.logical_and(meta_df.samp_type == "bulk", meta_df.isTraining == "Train")
@@ -390,62 +268,19 @@ def calc_PCA_perturbation(X_full, meta_df, scaler, fit):
 
     return (final_meta_df, decoded_0_0, decoded_0_1)
 
-def calc_CVAE_perturbation(X_full, meta_df, encoder, decoder, 
-                           scaler, batch_size, 
-                           label_1hot_full, drug_1hot_full):
+# for each sample calculate the transformation / projection in PCA space
+def get_pca_for_plotting(encodings):
 
-    label_1hot_temp = np.copy(label_1hot_full)
-    perturb_1hot_temp = np.copy(drug_1hot_full)
+    from sklearn.decomposition import PCA
 
+    fit = PCA(n_components=2)
+    pca_results = fit.fit_transform(encodings)
 
-    # get the single cell data 
-    idx_sc_ref = np.logical_and(meta_df.stim == "CTRL", meta_df.isTraining == "Train")
-    idx_sc_ref = np.logical_and(idx_sc_ref, meta_df.samp_type == "sc_ref")
-    idx_sc_ref = np.logical_and(idx_sc_ref, meta_df.cell_prop_type == "cell_type_specific")
-    idx_sc_ref = np.where(idx_sc_ref)[0]
-
-    ## this is to match up sample amounts across comparators
-    idx_sc_ref = np.tile(idx_sc_ref, 6) 
-
-
-    X_sc_ref = np.copy(X_full)
-    X_sc_ref = X_sc_ref[idx_sc_ref,]
-
-    # get the sample_ids we will perturb
-    sample_interest = ['1488', '1244', '1016', '101', '1039', '107']
-    sample_code_idx = np.logical_and(meta_df.cell_prop_type == "cell_type_specific", 
-                                        np.isin(meta_df.sample_id, sample_interest))
-    sample_code_idx = np.where(sample_code_idx)[0]
-    sample_code = label_1hot_temp[sample_code_idx]
-
-    # make the metadata file
-    ctrl_test_meta_df = meta_df.copy()
-    ctrl_test_meta_df = ctrl_test_meta_df.iloc[sample_code_idx]
-    ctrl_test_meta_df.isTraining = "Test"
-    ctrl_test_meta_df.stim = "CTRL"
-
-    # get the perturb code
-    idx_stim = np.where(meta_df.stim == "STIM")[0][range(6000)]
-    idx_stim = np.tile(idx_stim, 2)
-    perturbed_code = perturb_1hot_temp[idx_stim]
-
-    idx_ctrl = np.where(meta_df.stim == "CTRL")[0][range(6000)]
-    idx_ctrl = np.tile(idx_ctrl, 2)
-    unperturbed_code = perturb_1hot_temp[idx_ctrl]
-
-
-    mu_slack = encoder.predict([X_sc_ref, sample_code, perturbed_code], batch_size=batch_size)
-    z_concat = np.hstack([mu_slack, sample_code, perturbed_code])
-    decoded_0_1 = decoder.predict(z_concat, batch_size=batch_size)
-    decoded_0_1 = scaler.inverse_transform(decoded_0_1)
-
-
-    mu_slack = encoder.predict([X_sc_ref, sample_code, unperturbed_code], batch_size=batch_size)
-    z_concat = np.hstack([mu_slack, sample_code, unperturbed_code])
-    decoded_0_0 = decoder.predict(z_concat, batch_size=batch_size)
-    decoded_0_0 = scaler.inverse_transform(decoded_0_0)
-
-    return (ctrl_test_meta_df, decoded_0_0, decoded_0_1)
+    plot_df = pd.DataFrame(pca_results[:,0:2])
+    print(pca_results.shape)
+    print(plot_df.shape)
+    plot_df.columns = ['PCA_0', 'PCA_1']
+    return plot_df
 
 def plot_pca(plot_df, color_vec, ax, title="", alpha=0.1):
 
@@ -463,6 +298,7 @@ def plot_pca(plot_df, color_vec, ax, title="", alpha=0.1):
     ax.set_title(title)
     return g
 
+#get tsne projection
 def get_tsne_for_plotting(encodings):
     tsne = TSNE(n_components=2, verbose=1, perplexity=20, n_iter=500)
     tsne_results = tsne.fit_transform(encodings)
@@ -473,6 +309,7 @@ def get_tsne_for_plotting(encodings):
     plot_df.columns = ['tsne_0', 'tsne_1']
     return plot_df
 
+#plot tsne projection
 def plot_tsne(plot_df, color_vec, ax, title=""):
 
     plot_df['Y'] = color_vec
@@ -515,54 +352,3 @@ def plot_umap(plot_df, color_vec, ax, title="", alpha=0.3):
 
     ax.set_title(title)
     return g
-
-def plot_expr_corr(xval, yval, ax, title, xlab, ylab, class_id, max_val=2700, min_val=0, alpha=0.5):
-
-    plot_df = pd.DataFrame(list(zip(xval, yval)))
-    plot_df.columns = [xlab, ylab]
-
-    g = sns.scatterplot(
-        x=xlab, y=ylab,
-        data=plot_df,ax=ax,
-        hue=class_id,
-        alpha= alpha
-    )
-    g.set(ylim=(min_val, max_val))
-    g.set(xlim=(min_val, max_val))
-    g.plot([min_val, max_val], [min_val, max_val], transform=g.transAxes)
-
-
-    ax.set_title(title)
-    return g
-
-#Fcn to make table of cell proportions
-def make_prop_table(adata, obs):
-    num_cell_counter = Counter(adata.obs[obs])
-    num_cells = list()
-    cell_types = list()
-    prop_cells = list()
-    tot_count = 0
-    tot_prop = 0
-
-    for cell in num_cell_counter:
-        num_cells.append(num_cell_counter[cell])
-        cell_types.append(cell)
-        tot_count = tot_count + num_cell_counter[cell]
-
-    for cell in num_cell_counter:
-        proportion = num_cell_counter[cell] / tot_count
-        prop_cells.append(proportion)
-        tot_prop = tot_prop + proportion
-
-    cell_types.append('Total')
-    num_cells.append(tot_count)
-    prop_cells.append(tot_prop)
-    table = {'Cell_Types': cell_types, 
-        'Num_Cells': num_cells, 
-        'Prop_Cells': prop_cells}
-    table = pd.DataFrame(table)
-    return table        
-
-#funtion from https://github.com/greenelab/sc_bulk_ood/blob/main/evaluation_experiments/pbmc/pbmc_experiment_perturbation.ipynb
-def mean_sqr_error(single1, single2):
-  return np.mean((single1 - single2)**2)    
