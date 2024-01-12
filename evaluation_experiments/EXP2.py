@@ -15,42 +15,6 @@ results_path = f"{a_path}/results/EXP2"
 #environment name
 ker = "env_ml"
 
-###########################################   NNLS   ###############################################
-#notebook to run
-in_nb = f'{a_path}/evaluation_experiments/EXP2_eval.ipynb'
-
-#random_seed for cell missing selection
-rs = 88
-#number of cells for creating references equally
-num_s = 10000
-#how to handle negative distrib. for NMF (either minimim_value or at_0):
-nmf_cut_value = "minimum_value"
-#data to use
-data = "pbmc"
-#proportions in bulks
-noise = 'nonoise'
-prop_type = 'random'
-########################
-### setting the study ###
-#########################
-res_name = f"MCT_{data}_EXP2"
-pseudos_name = f"MCT_{data}_EXP1"
-files_path = "/data/EXP1/"
-data_path = "/data/EXP1/"
-num_missing_cells = [0,1,2,3,4]
-nmf_cut_value = "minimum_value"
-prop_type = 'random'
-cibersort_files = "/data/EXP1/cibersort/CIBERSORTx_Job55_MCT_snadp_EXP1_0_cibersort_sig_inferred_phenoclasses.CIBERSORTx_Job55_MCT_snadp_EXP1_0_cibersort_sig_inferred_refsample.bm.K999.txt"
-################################################
-#Excecuting notebook with no noise in PBMC.
-#noise added? (noise or nonoise)
-pm.execute_notebook(
-   in_nb,
-   f'{results_path}/EXP2_NNLS_eval_{data}_{noise}.ipynb', kernel_name= ker,
-   parameters=dict( res_name = res_name, pseudos_name = pseudos_name, files_path = files_path, noise_type = noise, 
-   cibersort_files = cibersort_files, random_seed = rs, num_missing_cells = num_missing_cells, 
-   num_samples = num_s, nmf_cut = nmf_cut_value, kernel_name = ker)
-)
 
 ###########################################   BAYESPRISM   ###############################################
 #notebook to run
@@ -74,21 +38,22 @@ noise = 'nonoise'
 res_name = f"MCT_{data}_EXP2"
 pseudos_name = f"MCT_{data}_EXP1"
 path = "/data/"
-aug_data_path = "/data/EXP2/"
+aug_data_path = "/data/EXP2/BayesPrism/"
 data_path = "/data/EXP1/"
 bp_path = "/data/EXP2/BP_results/"
 num_missing_cells = [0,1,2,3,4]
 nmf_cut_value = "minimum_value"
+path_results = "/results/EXP2/"
 
 ################################################
-#Excecuting notebook with no noise in PBMC.
-#noise added? (noise or nonoise)
+#Excecuting notebook 
 pm.execute_notebook(
    in_nb,
-   f'{results_path}/EXP2_bayesprism_eval_{data}_{noise}.ipynb', kernel_name= ker,
-   parameters=dict( res_name = res_name, pseudos_name = pseudos_name, path = path,
-   aug_data_path = aug_data_path, data_path = data_path, bp_path = bp_path, noise_type = noise,
-   random_seed = rs, num_missing_cells = num_missing_cells, num_samples = num_s, nmf_cut = nmf_cut_value, kernel_name = ker)
+   f'{results_path}/EXP2_bayesprism_eval_{data}_{noise}.ipynb', kernel_name= ker, 
+   parameters=dict( res_name = res_name, pseudos_name = pseudos_name, path = path, 
+   path_results = path_results, aug_data_path = aug_data_path, data_path = data_path, bp_path = bp_path,
+   noise_type = noise, random_seed = rs, num_missing_cells = num_missing_cells, num_samples = num_s, 
+   nmf_cut = nmf_cut_value, kernel_name = ker)
 )
 
 ##########################################################################################################
@@ -103,7 +68,7 @@ num_s = 10000
 #how to handle negative distrib. for NMF (either minimim_value or at_0):
 nmf_cut_value = "minimum_value"
 #data to use
-data = "pbmc"
+data_type = "pbmc3k/"
 #proportions in bulks
 bulkprop_type = "random"
 noise = "nonoise"
@@ -115,16 +80,59 @@ pseudos_name = f"MCT_{data}_EXP1"
 path = "/data/"
 aug_data_path = "/data/EXP2/cibersort/"
 data_path = "/data/EXP1/"
-cs_path = f"{aug_data_path}cibersort_results/"
+cs_path = f"/data/EXP2/cibersort_results/"
 num_missing_cells = [0,1,2,3,4]
 nmf_cut_value = "minimum_value"
-
+path_results = "/results/EXP2/"
 ###################################################################################################
-#Excecuting notebook with no noise in PBMC3k
+#Excecuting notebook 
 pm.execute_notebook(
    in_nb,
    f'{results_path}/EXP2_cibersort_eval_{data}_{noise}.ipynb', kernel_name= ker,
    parameters=dict( res_name = res_name, pseudos_name = pseudos_name, prop_type = bulkprop_type,
-   path = path, aug_data_path = aug_data_path, data_path = data_path, cibersort_path = cs_path, noise_type = noise,  
-   random_seed = rs, num_missing_cells = num_missing_cells, num_samples = num_s, nmf_cut = nmf_cut_value, kernel_name = ker)
+   data_type =data_type, path = path, aug_data_path = aug_data_path, data_path = data_path, 
+   cibersort_path = cs_path, noise_type = noise, random_seed = rs, path_results = path_results,
+   num_missing_cells = num_missing_cells, num_samples = num_s, nmf_cut = nmf_cut_value, kernel_name = ker)
+)
+
+###########################################   NNLS   ###############################################
+#notebook to run
+in_nb = f'{a_path}/evaluation_experiments/EXP2_eval.ipynb'
+
+#random_seed for cell missing selection
+rs = 88
+#number of cells for creating references equally
+num_s = 10000
+#how to handle negative distrib. for NMF (either minimim_value or at_0):
+nmf_cut_value = "minimum_value" 
+#data to use
+data = "pbmc" #pbmc
+#proportions in bulks
+noise = 'nonoise'
+prop_type = 'random'
+########################
+### setting the study ###
+#########################
+res_name = f"MCT_{data}_EXP2"
+pseudos_name = f"MCT_{data}_EXP1"
+files_path = "/data/EXP1/"
+data_path = "/data/EXP1/"
+path_results = "/results/EXP2/"
+cibersort_files = "/data/EXP2/cibersort_results/pbmc3k/0_missing/CIBERSORTx_MCT_\
+pbmc_EXP2_randomprop_nonoise_0missing_signal_inferred_phenoclasses.CIBERSORTx_MCT_pbmc_EXP2_\
+randomprop_nonoise_0missing_signal_inferred_refsample.bm.K999.txt"
+num_missing_cells = [0,1,2,3,4]
+
+#if you want cells to be deleted chosen randomly:
+cells_to_miss_random = True
+#cells_to_miss = {0: [], 1: [1], 2: [1, 3], 3: [1, 3, 4], 4: [1, 3, 4, 2]}
+
+################################################
+#Excecuting notebook 
+pm.execute_notebook(
+   in_nb,
+   f'{results_path}/EXP2_NNLS_eval_{data}_{noise}.ipynb', kernel_name= ker,
+   parameters=dict( res_name = res_name, pseudos_name = pseudos_name, files_path = files_path, 
+   noise_type = noise, cibersort_files = cibersort_files, random_seed = rs, path_results = path_results,
+   num_missing_cells = num_missing_cells, num_samples = num_s, nmf_cut = nmf_cut_value, kernel_name = ker)
 )
