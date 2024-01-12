@@ -73,7 +73,6 @@ def factors_vs_proportions_rmse(factors, proportions, num_missing_cells, method)
     cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap', list(zip(positions, colors)))
 
     # Create a colormap and normalize object for correlation values
-    #cmap = plt.get_cmap('cividis')
     cmap.set_bad((0.4, 0.4, 0.4, 0.4))  # Set alpha value to 0.4 (0 is fully transparent, 1 is fully opaque)
     norm = Normalize(vmin=-1, vmax=1)  # Set vmin and vmax to -1 and 1 for correlations
     scalar_map = ScalarMappable(norm=norm, cmap=cmap)
@@ -108,21 +107,23 @@ def factors_vs_proportions_rmse(factors, proportions, num_missing_cells, method)
                 # Scatter plot with color based on correlation
                 ax.scatter(x, y, c='dimgrey', alpha=0.7)
                 ax.set_xlabel(f'{proportions[num].columns[0]} Proportions', fontsize=12)
-                ax.set_ylabel(f'{fc}{factor}', fontsize=12)
+                ax.set_ylabel(f'{fc}{factor}', fontsize=12, labelpad = 0.5)
                 ax.patch.set_facecolor(color)
                 ax.patch.set_alpha(1)
                 ax.annotate('RMSE = {:.2f}'.format(rmse_value),xy=(0.5, 0.9), xycoords='axes fraction',
                         ha='center', va='center', fontsize=10, fontweight = 'bold')
-                # Add a regression line
-                #ax.plot(np.unique(x), np.poly1d(np.polyfit(x, y, 1))(np.unique(x)), color='darkgrey')
-
+                
             # Create a colorbar for the scatter plot
             cax = plt.colorbar(scalar_map, ax=axes.ravel().tolist(), alpha=1, pad=0.01)
             cax.set_label('Correlation (r)', fontsize=12)
             cax.set_alpha(0.4)
         else:
             # Create a grid of subplots
-            fig, axes = plt.subplots(num_rows, num_cols, figsize=(15, 10))
+            len_row = 6 * num - num
+            len_col = 4 * num - num
+            if num ==2:
+                len_row = len_row + 2
+            fig, axes = plt.subplots(num_rows, num_cols, figsize=(len_row, len_col))
             fig.suptitle(f'{method} on Residual: {num} Missing Cells {num} vs. Missing Cells Proportion', 
                     fontsize=16, y=0.93)  # Adjust the title spacing
             fig.patch.set_facecolor('white')
@@ -149,14 +150,16 @@ def factors_vs_proportions_rmse(factors, proportions, num_missing_cells, method)
                     rmse_value = rmse(x, y)#, squared=False)
                     # Scatter plot with color based on correlation
                     ax.scatter(x, y, c='dimgrey', alpha=0.7)
-                    ax.set_xlabel(f'{cell_type} Proportions',fontsize=12)
-                    ax.set_ylabel(f'{fc} {factor}', fontsize=12)
+                    if len(cell_type) < 8:
+                        ax.set_xlabel(f'{cell_type} Proportions',fontsize=12)
+                    else:
+                        #adding new line
+                        ax.set_xlabel(f'{cell_type}\nProportions', fontsize=12)
+                    ax.set_ylabel(f'{fc} {factor}', fontsize=12, labelpad = 0.5)
                     ax.patch.set_facecolor(color)
                     ax.patch.set_alpha(1)
                     ax.annotate('RMSE = {:.2f}'.format(rmse_value), xy=(0.5, 0.9), xycoords='axes fraction', 
                             ha='center', va='center', fontsize=10, fontweight="bold")
-                    # Add a regression line
-                    #ax.plot(np.unique(x), np.poly1d(np.polyfit(x, y, 1))(np.unique(x)), color='darkgrey')
 
             # Create a colorbar for the scatter plots
             if num > 3:
@@ -167,9 +170,8 @@ def factors_vs_proportions_rmse(factors, proportions, num_missing_cells, method)
             cax.set_label('Correlation (r)', fontsize=12)
             cax.set_alpha(1)
 
-
 # Function to compare factors to the missing cell type proportions, adapted for real data
-def factors_vs_proportions_heatmaps_real(factors, proportions, num, method):
+def factors_vs_proportions_heatmaps_real(factors, proportions, num, method, rmse_plot):
     if method == "PCA":
         fc = "PC"
     if method == "SVD":
@@ -214,29 +216,37 @@ def factors_vs_proportions_heatmaps_real(factors, proportions, num, method):
             # Calculate Pearson's correlation coefficient
             r, p = stats.pearsonr(x, y)
             correlations[j] = r
-            # Calculate RMSE
-            rmse_value = rmse(x, y)
             # Map correlation value to color
             color = scalar_map.to_rgba(r)
             
             # Scatter plot with color based on correlation
             ax.scatter(x, y, c='dimgrey', alpha=0.7)
+            if len(cell_type) < 8:
+                ax.set_xlabel(f'{cell_type} Proportions',fontsize=12)
+            else:
+                formatted_label = '\n'.join(cell_type.split())   
+                ax.set_xlabel(f'{formatted_label} Proportions',fontsize=12)
+            ax.set_ylabel(f'{fc} {factor}', fontsize=12, labelpad = 0.5)
             ax.set_xlabel(f'{proportions[num].columns[0]} Proportions', fontsize=12)
-            ax.set_ylabel(f'{fc}{factor}', fontsize=12)
             ax.patch.set_facecolor(color)
             ax.patch.set_alpha(1)
-            ax.annotate('RMSE = {:.2f}'.format(rmse_value),xy=(0.5, 0.9), xycoords='axes fraction',
+            #only show RMSE if relevant:
+            if rmse_plot:
+                # Calculate RMSE
+                rmse_value = rmse(x, y)
+                ax.annotate('RMSE = {:.2f}'.format(rmse_value),xy=(0.5, 0.9), xycoords='axes fraction',
                         ha='center', va='center', fontsize=10, fontweight = 'bold')
-            # Add a regression line
-            #ax.plot(np.unique(x), np.poly1d(np.polyfit(x, y, 1))(np.unique(x)), color='blue')
-        
         # Create a colorbar for the scatter plot
         cax = plt.colorbar(scalar_map, ax=axes.ravel().tolist(), alpha=1, pad=0.01)
         cax.set_label('Correlation (r)', fontsize=12)
         cax.set_alpha(0.4)
     else:
         # Create a grid of subplots
-        fig, axes = plt.subplots(num_rows, num_cols, figsize=(15, 10))
+        len_row = 6 * num - num
+        len_col = 4 * num - num
+        if num ==2:
+            len_row = len_row + 2
+        fig, axes = plt.subplots(num_rows, num_cols, figsize=(len_row, len_col))
         fig.suptitle(f'{method} on Residual: {num} Missing Cells {num} vs. Missing Cells Proportion', 
                 fontsize=16, y=0.93)  # Adjust the title spacing
         fig.patch.set_facecolor('white')
@@ -258,8 +268,7 @@ def factors_vs_proportions_heatmaps_real(factors, proportions, num, method):
 
                 # Map correlation value to color
                 color = scalar_map.to_rgba(r)
-                # Calculate RMSE
-                rmse_value = rmse(x, y)
+
                 # Scatter plot with color based on correlation
                 ax.scatter(x, y, c='dimgrey', alpha=0.7)
                 ax.set_xlabel(f'{cell_type} Proportions',fontsize=12)
@@ -267,10 +276,12 @@ def factors_vs_proportions_heatmaps_real(factors, proportions, num, method):
                 ax.set_ylabel(f'{fc} {factor}', fontsize=12)
                 ax.patch.set_facecolor(color)
                 ax.patch.set_alpha(1)
-                ax.annotate('RMSE = {:.2f}'.format(rmse_value), xy=(0.5, 0.9), xycoords='axes fraction', 
-                        ha='center', va='center', fontsize=10, fontweight="bold")                # Add a regression line
-                #ax.plot(np.unique(x), np.poly1d(np.polyfit(x, y, 1))(np.unique(x)), color='blue')
-        
+                #only show RMSE if relevant:
+                if rmse_plot:
+                    # Calculate RMSE
+                    rmse_value = rmse(x, y)
+                    ax.annotate('RMSE = {:.2f}'.format(rmse_value),xy=(0.5, 0.9), xycoords='axes fraction',
+                            ha='center', va='center', fontsize=10, fontweight = 'bold')                
         # Create a colorbar for the scatter plots
         if num > 3:
             bar_pad = 0.02
@@ -377,7 +388,7 @@ def calc_nnls(all_refs, prop_df, pseudo_df, num_missing_cells, cells_to_miss):
     return calc_prop_tot, calc_res_tot, custom_res_tot, comparison_prop_tot, missing_cell_tot     
 
 # Function to compare factors to the missing cell type proportions
-def factors_vs_proportions_heatmaps(factors, proportions, num_missing_cells, method):
+def factors_vs_proportions_heatmaps(factors, proportions, num_missing_cells, method):   
     if method == "PCA":
         fc = "PC"
     if method == "SVD":
@@ -441,7 +452,11 @@ def factors_vs_proportions_heatmaps(factors, proportions, num_missing_cells, met
             plt.tight_layout()
         else:
             # Create a grid of subplots
-            fig, axes = plt.subplots(num_rows, num_cols, figsize=(15, 10))
+            len_row = 6 * num - num
+            len_col = 4 * num - num
+            if num ==2:
+                len_row = len_row + 2
+            fig, axes = plt.subplots(num_rows, num_cols, figsize=(len_row, len_col))
             fig.suptitle(f'{method} on Residual: No. cells missing {num}, vs. Missing Cell Proportion', fontsize=16)
 
             # Initialize an array to store correlations
@@ -464,6 +479,7 @@ def factors_vs_proportions_heatmaps(factors, proportions, num_missing_cells, met
                     
                     # Scatter plot with color based on correlation
                     ax.scatter(x, y, c=color)
+
                     ax.set_xlabel(f'{cell_type} Proportions')
                     ax.set_ylabel(f'{fc} {factor}')
                     
@@ -486,7 +502,6 @@ def factors_vs_proportions_heatmaps(factors, proportions, num_missing_cells, met
             plt.xlabel(f"{fc} No.")
             plt.ylabel("Missing Cell Type")
         plt.show()
-
 
 #Fcn to make table of cell proportions
 def make_prop_table(adata, obs):
@@ -615,7 +630,7 @@ def factors_vs_expression(factors, expression, num_missing_cells, method):
         fc = "Factor"      
    #sample compared to each missing celltype expression
     # iterate over the number of missing cells
-# iterate over the number of missing cells
+    # iterate over the number of missing cells
     for num in num_missing_cells[1:]:
         res_PCA_df = factors[num]
         #define the number of rows and columns for the grid layout
@@ -810,7 +825,6 @@ def plot_umap(plot_df, color_vec, ax, title="", alpha=0.3):
     ax.set_title(title)
     return g
 
-
 #Funct. adapted from:
 # https://bbquercus.medium.com/adding-statistical-significance-asterisks-to-seaborn-plots-9c8317383235
 #to convert p value to number of asterisks in plots
@@ -824,7 +838,6 @@ def convert_pvalue_to_asterisks(pvalue):
     elif pvalue <= 0.05:
         return "*"
     return "ns"
-
 
 #fcn to extract proportions from each adata and remove cell types that are not frequent
 def get_prop(adata):

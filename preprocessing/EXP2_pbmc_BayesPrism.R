@@ -1,6 +1,6 @@
-#The following script opens csv files created in Python
-#and turns them into the appropriate format for Bayes Prism.
-#It is assumed the files already have a 1-start index.
+#The following script opens files created in Python notebook EXP2_bayesprismprep_pbmc.ipynb
+# and uses InsaPrism for deconvolution of the bulks in BayesPrism framework, using references with  
+# and without all the cell-types.
 # Import necessary libraries
 library(InstaPrism)
 library(BayesPrism)
@@ -37,7 +37,7 @@ for (num_missing in num_missing_values) {
       
       # Combine the script directory and relative path to get the full path
       import_path <- paste0(relative_path, "BayesPrism/")
-      export_path <- paste0(relative_path, "BP_results/")
+      export_path <- paste0(relative_path, "bp_results/")
       
       # Define filenames based on the current combination
       mixture_file <- paste0(import_path, "MCT_", data_type, "_EXP2_", proportion_type,"prop_", noise_type, "_mixture.csv")

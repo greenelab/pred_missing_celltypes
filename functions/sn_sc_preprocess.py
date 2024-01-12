@@ -19,6 +19,12 @@ import pickle
 import gzip
 from pathlib import Path
 
+
+#function to sort columns alphabetically in a DataFrame
+def sort_columns_alphabetically(df):
+    return df.reindex(sorted(df.columns), axis=1)
+
+
 #write files for CIBERSORTX
 def write_cibersortx_files(bp_path, out_file_id, sig_df, X_train, num_str, bulks_type):
   #make index compatible w/ R
@@ -523,7 +529,7 @@ def read_single_pseudobulk_file(data_path, noise_type, file_name, idx):
 
   pseudobulk_file = os.path.join(data_path, f"{file_name}_{noise_type}pseudo_{idx}.pkl")
 
-  gene_file = os.path.join(data_path, f"intersection_genes.pkl")
+  gene_file = os.path.join(data_path, f"{file_name}_intersection_genes.pkl")
 
   pseudobulk_path = Path(pseudobulk_file)
   gene_path = Path(gene_file)
