@@ -57,7 +57,7 @@ def write_bp_files(bp_path, out_file_id, sig_df, X_train, num_str, bulks_type):
   #transpose incoming X_train file
   pseudos_df = X_train.transpose()
   pseudos_df.columns = range(pseudos_df.shape[1])
-
+  
   return(pseudos_df, sig_df)
 
 # select cells to delete with random seed

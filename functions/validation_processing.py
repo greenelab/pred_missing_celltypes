@@ -291,7 +291,7 @@ def factors_vs_proportions_heatmaps_real(factors, proportions, num, method, rmse
         cax.set_label('Correlation (r)', fontsize=12)
         cax.set_alpha(1)
 
-#helper function to open pseudo files and selecting some bulks depending on needs
+# Helper function to open pseudo files and selecting some bulks depending on needs
 def select_bulks(bulk_type, num_bulks_touse, num_idx_total, res_name, path, bulk_range, rs):
     #selecting bulks and props for deconv.
     np.random.seed(rs) 

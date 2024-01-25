@@ -1,4 +1,5 @@
-#The following script runs the notebook specified in in_nb with different parameters specified in parameters dict.
+#The following script runs the notebook specified in in_nb with 
+# different parameters specified in parameters dict.
 #Papermill parametrizes the notebook.
 #The resulting notebooks can be found in results_path.
 
@@ -31,7 +32,9 @@ data = "adp" #adipose data single cell and single nucleus
 res_name = f"MCT_adp_EXP3"
 pseudos_name = "MCT_adp_EXP3"
 files_path = "/data/EXP3/"
-cibersort_files = "/data/EXP3/cibersort/CIBERSORTx_Job52_MCT_adp_EXP3_nonoise_cibersort_sig_inferred_phenoclasses.CIBERSORTx_Job52_MCT_adp_EXP3_nonoise_cibersort_sig_inferred_refsample.bm.K999.txt"
+cibersort_files = "/data/EXP3/cibersort/CIBERSORTx_Job52_MCT_adp_EXP3_\
+nonoise_cibersort_sig_inferred_phenoclasses.CIBERSORTx_Job52_MCT_adp_EXP3_\
+nonoise_cibersort_sig_inferred_refsample.bm.K999.txt"
 ###### set your random seed, num missing cells, and num_samples for reference for reproducibility
 rs = 88 #random seed
 num_samples = 10000
