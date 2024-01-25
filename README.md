@@ -10,8 +10,8 @@ This repository is currently a work in progress of a project aimed at uncovering
 - /functions/ :  scripts with functions used throughout other folders.
 - /data/: contains data information. Specific samples can be downloaded individually as specific in data_information.xlsx.
 
-## Data information:
-    - Information on data used can be found in data/data_information.xlsx.
+## Data information: ## Information on all data used can be found in:
+    - https://github.com/ivichadriana/pred_missing_celltypes/blob/main/data/Supplemental_Table_2.xlsx
 
 ## Note:
 - CIBERSORTx was run through Docker with user-specific code using the exploratory_experiments/Run_cibersortx.py script.
@@ -63,4 +63,9 @@ The following outline sdescribed each file and the rough outline in which the sc
     - This should be run after both BayesPrism and CIBERSORTx are done. 
 - /exploratory_experiments/EXP3_eval.ipynb 
     - Final notebook contiaining the NNLS deconvolution and analysis, and the comparison between deconvolution methods.     
-    
+
+## EXP4:
+- /preprocessing/EXP4_preprocessing.ipynb
+    - Preprocess and QCs single-cell  and bulk data from HGSOC.
+- /exploratory_experiments/EXP4_eval.ipynb 
+    - NNLS deconvolution and analysis of dissociated and classic bulks.   
