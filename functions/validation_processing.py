@@ -1,17 +1,6 @@
 # general imports
 import warnings
 import numpy as np
-import tensorflow as tf
-from tensorflow.keras.layers import Input, Dense, Lambda, Flatten, Softmax, ReLU, ELU, LeakyReLU
-from tensorflow.keras.layers import concatenate as concat
-from tensorflow.keras.models import Model, Sequential
-from tensorflow.keras import backend as K
-from tensorflow.keras.losses import mean_absolute_error, mean_squared_error, KLDivergence
-from tensorflow.keras.datasets import mnist
-from tensorflow.keras.activations import relu, linear
-from tensorflow.keras.utils import to_categorical, normalize, plot_model
-from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.optimizers import Adam, SGD
 import matplotlib.pyplot as plt
 from scipy.spatial import distance_matrix
 from scipy.stats import spearmanr, pearsonr, ttest_ind, wilcoxon
@@ -22,9 +11,12 @@ from PIL import Image
 from collections import Counter
 from tqdm import tnrange, tqdm_notebook
 import ipywidgets
+from matplotlib.colors import Normalize
+from matplotlib.cm import ScalarMappable
 import scipy as sp
 from scipy.optimize import nnls
-
+from scipy import stats
+from scipy.stats import spearmanr, pearsonr
 # Images, plots, display, and visualization
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -34,14 +26,261 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import scale, MinMaxScaler
 from matplotlib_venn import venn2
 from upsetplot import from_contents, UpSet
-
+import matplotlib.colors as mcolors
+from sklearn.metrics import mean_squared_error
 # programming stuff
 import time
 import os
 import pickle
 from pathlib import Path
 
-#helper function to open pseudo files and selecting some bulks depending on needs
+#funct to calculate RMSE
+def rmse(y, y_pred):
+    # Ensure both y and y_pred are 2D arrays with the same shape
+    y = np.array(y).reshape(-1, 1)
+    y_pred = np.array(y_pred).reshape(-1, 1)
+    
+    # Calculate RMSE
+    return np.sqrt(((y - y_pred)**2).mean())
+
+def factors_vs_proportions_rmse(factors, proportions, num_missing_cells, method):
+    if method == "PCA":
+        fc = "PC"
+    if method == "SVD":
+        fc = "SVD"
+    if method == "ICA":
+        fc = "IC" 
+    if method == "NMF":
+        fc = "Factor" 
+
+    # Set the font to Arial for all text
+    plt.rcParams['font.family'] = 'Arial'
+    # Define your custom colormap colors and their positions
+    colors = ['purple', 'white', 'yellow']
+    positions = [0.0, 0.5, 1.0]
+    # Create the colormap using LinearSegmentedColormap
+    cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap', list(zip(positions, colors)))
+
+    # Create a colormap and normalize object for correlation values
+    cmap.set_bad((0.4, 0.4, 0.4, 0.4))  # Set alpha value to 0.4 (0 is fully transparent, 1 is fully opaque)
+    norm = Normalize(vmin=-1, vmax=1)  # Set vmin and vmax to -1 and 1 for correlations
+    scalar_map = ScalarMappable(norm=norm, cmap=cmap)
+    scalar_map.set_array([])
+
+    # Iterate over the number of missing cells
+    for num in num_missing_cells[1:]:
+        # Define the number of rows and columns for the grid layout
+        num_rows = len(proportions[num].columns)
+        num_cols = len(factors[num].columns)
+
+        if num_rows == 1:
+            # Create a single subplot with two separate scatter plots
+            fig, axes = plt.subplots(1, 2, figsize=(12, 5))  # Two columns for two factors
+            fig.suptitle(f'{method} on Residual: {num} Missing Cell {num} vs. Missing Cell Proportion', fontsize=16,y=0.95)
+            x = list(proportions[num].iloc[:, 0])  # Assuming there's only one cell type
+            correlations = np.zeros(2)  # Array to store correlations
+            fig.patch.set_facecolor('white')
+            fig.patch.set_alpha(1)
+            for j, factor in enumerate(factors[num].columns):
+                y = list(factors[num][factor])
+                ax = axes[j]  # Use the current subplot for plotting
+
+                # Calculate Pearson's correlation coefficient
+                r, p = stats.pearsonr(x, y)
+                correlations[j] = r
+                # Calculate RMSE
+                rmse_value = rmse(x, y)#, squared=False)
+                # Map correlation value to color
+                color = scalar_map.to_rgba(r)
+
+                # Scatter plot with color based on correlation
+                ax.scatter(x, y, c='dimgrey', alpha=0.7)
+                ax.set_xlabel(f'{proportions[num].columns[0]} Proportions', fontsize=12)
+                ax.set_ylabel(f'{fc}{factor}', fontsize=12, labelpad = 0.5)
+                ax.patch.set_facecolor(color)
+                ax.patch.set_alpha(1)
+                ax.annotate('RMSE = {:.2f}'.format(rmse_value),xy=(0.5, 0.9), xycoords='axes fraction',
+                        ha='center', va='center', fontsize=10, fontweight = 'bold')
+                
+            # Create a colorbar for the scatter plot
+            cax = plt.colorbar(scalar_map, ax=axes.ravel().tolist(), alpha=1, pad=0.01)
+            cax.set_label('Correlation (r)', fontsize=12)
+            cax.set_alpha(0.4)
+        else:
+            # Create a grid of subplots
+            len_row = 6 * num - num
+            len_col = 4 * num - num
+            if num ==2:
+                len_row = len_row + 2
+            fig, axes = plt.subplots(num_rows, num_cols, figsize=(len_row, len_col))
+            fig.suptitle(f'{method} on Residual: {num} Missing Cells {num} vs. Missing Cells Proportion', 
+                    fontsize=16, y=0.93)  # Adjust the title spacing
+            fig.patch.set_facecolor('white')
+            fig.patch.set_alpha(1)
+            fig.subplots_adjust(hspace=0.4, wspace=0.4)
+            # Initialize an array to store correlations
+            correlations = np.zeros((num_rows, num_cols))
+
+            # Iterate over cell types and factors
+            for i, cell_type in enumerate(proportions[num].columns):
+                for j, factor in enumerate(factors[num].columns):
+                    x = list(proportions[num][cell_type])
+                    y = list(factors[num][factor])
+                    # Use the current subplot for plotting
+                    ax = axes[i, j]
+
+                    # Calculate Pearson's correlation coefficient
+                    r, p = stats.pearsonr(x, y)
+                    correlations[i, j] = r
+
+                    # Map correlation value to color
+                    color = scalar_map.to_rgba(r)
+                    # Calculate RMSE
+                    rmse_value = rmse(x, y)#, squared=False)
+                    # Scatter plot with color based on correlation
+                    ax.scatter(x, y, c='dimgrey', alpha=0.7)
+                    if len(cell_type) < 8:
+                        ax.set_xlabel(f'{cell_type} Proportions',fontsize=12)
+                    else:
+                        #adding new line
+                        ax.set_xlabel(f'{cell_type}\nProportions', fontsize=12)
+                    ax.set_ylabel(f'{fc} {factor}', fontsize=12, labelpad = 0.5)
+                    ax.patch.set_facecolor(color)
+                    ax.patch.set_alpha(1)
+                    ax.annotate('RMSE = {:.2f}'.format(rmse_value), xy=(0.5, 0.9), xycoords='axes fraction', 
+                            ha='center', va='center', fontsize=10, fontweight="bold")
+
+            # Create a colorbar for the scatter plots
+            if num > 3:
+                bar_pad = 0.02
+            else:
+                bar_pad =0.01
+            cax = plt.colorbar(scalar_map, ax=axes.ravel().tolist(), alpha=1, pad=bar_pad)
+            cax.set_label('Correlation (r)', fontsize=12)
+            cax.set_alpha(1)
+
+# Function to compare factors to the missing cell type proportions, adapted for real data
+def factors_vs_proportions_heatmaps_real(factors, proportions, num, method, rmse_plot):
+    if method == "PCA":
+        fc = "PC"
+    if method == "SVD":
+        fc = "SVD"
+    if method == "ICA":
+        fc = "IC" 
+    if method == "NMF":
+        fc = "Factor"      
+    
+    # Create a colormap and normalize object for correlation values
+    # Set the font to Arial for all text
+    plt.rcParams['font.family'] = 'Arial'
+    # Define your custom colormap colors and their positions
+    colors = ['purple', 'white', 'yellow']
+    positions = [0.0, 0.5, 1.0]
+    # Create the colormap using LinearSegmentedColormap
+    cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap', list(zip(positions, colors)))
+    # Create a colormap and normalize object for correlation values
+    #cmap = plt.get_cmap('cividis')
+    cmap.set_bad((0.4, 0.4, 0.4, 0.4))  # Set alpha value to 0.4 (0 is fully transparent, 1 is fully opaque)
+    norm = Normalize(vmin=-1, vmax=1)  # Set vmin and vmax to -1 and 1 for correlations
+    scalar_map = ScalarMappable(norm=norm, cmap=cmap)
+    scalar_map.set_array([])
+    # Iterate over the number of missing cells
+    
+    # Define the number of rows and columns for the grid layout
+    num_rows = len(proportions[num].columns) 
+    num_cols = len(factors[num].columns)
+    
+    if num_rows == 1:
+        # Create a single subplot with two separate scatter plots
+        fig, axes = plt.subplots(1, 2, figsize=(12, 5))  # Two columns for two factors
+        fig.suptitle(f'{method} on Residual: {num} Missing Cell {num} vs. Missing Cell Proportion', fontsize=16,y=0.95)
+        x = list(proportions[num].iloc[:, 0])  # Assuming there's only one cell type
+        correlations = np.zeros(2)  # Array to store correlations
+        fig.patch.set_facecolor('white')
+        fig.patch.set_alpha(1)
+        for j, factor in enumerate(factors[num].columns):
+            y = list(factors[num][factor])
+            ax = axes[j]  # Use the current subplot for plotting
+
+            # Calculate Pearson's correlation coefficient
+            r, p = stats.pearsonr(x, y)
+            correlations[j] = r
+            # Map correlation value to color
+            color = scalar_map.to_rgba(r)
+            
+            # Scatter plot with color based on correlation
+            ax.scatter(x, y, c='dimgrey', alpha=0.7)
+            if len(cell_type) < 8:
+                ax.set_xlabel(f'{cell_type} Proportions',fontsize=12)
+            else:
+                formatted_label = '\n'.join(cell_type.split())   
+                ax.set_xlabel(f'{formatted_label} Proportions',fontsize=12)
+            ax.set_ylabel(f'{fc} {factor}', fontsize=12, labelpad = 0.5)
+            ax.set_xlabel(f'{proportions[num].columns[0]} Proportions', fontsize=12)
+            ax.patch.set_facecolor(color)
+            ax.patch.set_alpha(1)
+            #only show RMSE if relevant:
+            if rmse_plot:
+                # Calculate RMSE
+                rmse_value = rmse(x, y)
+                ax.annotate('RMSE = {:.2f}'.format(rmse_value),xy=(0.5, 0.9), xycoords='axes fraction',
+                        ha='center', va='center', fontsize=10, fontweight = 'bold')
+        # Create a colorbar for the scatter plot
+        cax = plt.colorbar(scalar_map, ax=axes.ravel().tolist(), alpha=1, pad=0.01)
+        cax.set_label('Correlation (r)', fontsize=12)
+        cax.set_alpha(0.4)
+    else:
+        # Create a grid of subplots
+        len_row = 6 * num - num
+        len_col = 4 * num - num
+        if num ==2:
+            len_row = len_row + 2
+        fig, axes = plt.subplots(num_rows, num_cols, figsize=(len_row, len_col))
+        fig.suptitle(f'{method} on Residual: {num} Missing Cells {num} vs. Missing Cells Proportion', 
+                fontsize=16, y=0.93)  # Adjust the title spacing
+        fig.patch.set_facecolor('white')
+        fig.patch.set_alpha(1)
+        fig.subplots_adjust(hspace=0.4, wspace=0.4)
+        # Initialize an array to store correlations
+        correlations = np.zeros((num_rows, num_cols))
+        
+        # Iterate over cell types and factors
+        for i, cell_type in enumerate(proportions[num].columns):
+            for j, factor in enumerate(factors[num].columns):
+                x = list(proportions[num][cell_type])
+                y = list(factors[num][factor])
+                # Use the current subplot for plotting
+                ax = axes[i, j]
+                # Calculate Pearson's correlation coefficient
+                r, p = stats.pearsonr(x, y)
+                correlations[i, j] = r
+
+                # Map correlation value to color
+                color = scalar_map.to_rgba(r)
+
+                # Scatter plot with color based on correlation
+                ax.scatter(x, y, c='dimgrey', alpha=0.7)
+                ax.set_xlabel(f'{cell_type} Proportions',fontsize=12)
+                ax.set_ylabel(f'{fc} {factor}',fontsize=12)
+                ax.set_ylabel(f'{fc} {factor}', fontsize=12)
+                ax.patch.set_facecolor(color)
+                ax.patch.set_alpha(1)
+                #only show RMSE if relevant:
+                if rmse_plot:
+                    # Calculate RMSE
+                    rmse_value = rmse(x, y)
+                    ax.annotate('RMSE = {:.2f}'.format(rmse_value),xy=(0.5, 0.9), xycoords='axes fraction',
+                            ha='center', va='center', fontsize=10, fontweight = 'bold')                
+        # Create a colorbar for the scatter plots
+        if num > 3:
+            bar_pad = 0.02
+        else:
+            bar_pad =0.01
+        cax = plt.colorbar(scalar_map, ax=axes.ravel().tolist(), alpha=1, pad=bar_pad)
+        cax.set_label('Correlation (r)', fontsize=12)
+        cax.set_alpha(1)
+
+# Helper function to open pseudo files and selecting some bulks depending on needs
 def select_bulks(bulk_type, num_bulks_touse, num_idx_total, res_name, path, bulk_range, rs):
     #selecting bulks and props for deconv.
     np.random.seed(rs) 
@@ -137,6 +376,122 @@ def calc_nnls(all_refs, prop_df, pseudo_df, num_missing_cells, cells_to_miss):
 
     return calc_prop_tot, calc_res_tot, custom_res_tot, comparison_prop_tot, missing_cell_tot     
 
+# Function to compare factors to the missing cell type proportions
+def factors_vs_proportions_heatmaps(factors, proportions, num_missing_cells, method):   
+    if method == "PCA":
+        fc = "PC"
+    if method == "SVD":
+        fc = "SVD"
+    if method == "ICA":
+        fc = "IC" 
+    if method == "NMF":
+        fc = "Factor"      
+    
+    # Create a colormap and normalize object for correlation values
+    cmap = plt.get_cmap('coolwarm')
+    norm = Normalize(vmin=-1, vmax=1)
+    scalar_map = ScalarMappable(norm=norm, cmap=cmap)
+
+    # Iterate over the number of missing cells
+    for num in num_missing_cells[1:]:
+        # Define the number of rows and columns for the grid layout
+        num_rows = len(proportions[num].columns) 
+        num_cols = len(factors[num].columns)
+        
+        if num_rows == 1:
+            # Create a single subplot with two separate scatter plots
+            fig, axes = plt.subplots(1, 2, figsize=(14, 5))  # Two columns for two factors
+            fig.suptitle(f'Correlations for {method} on Residual: No. cells missing {num}', fontsize=12)
+            x = list(proportions[num].iloc[:, 0])  # Assuming there's only one cell type
+            correlations = np.zeros(2)  # Array to store correlations
+            
+            for j, factor in enumerate(factors[num].columns):
+                y = list(factors[num][factor])
+                ax = axes[j]  # Use the current subplot for plotting
+
+                # Calculate Pearson's correlation coefficient
+                r, p = stats.pearsonr(x, y)
+                correlations[j] = r
+                
+                # Map correlation value to color
+                color = scalar_map.to_rgba(r)
+                
+                # Scatter plot with color based on correlation
+                ax.scatter(x, y, c=color)
+                ax.set_xlabel(f'{proportions[num].columns[0]} Proportions')
+                ax.set_ylabel(f'{fc}{factor}')
+                ax.annotate('r = {:.2f}'.format(r), xy=(0.7, 0.9), xycoords='axes fraction')
+                # Add a regression line
+                ax.plot(np.unique(x), np.poly1d(np.polyfit(x, y, 1))(np.unique(x)), color='blue')
+                
+            # Create a colorbar for the scatter plot
+            cax = plt.colorbar(scalar_map, ax=axes.ravel().tolist())
+            cax.set_label('Correlation (r)')
+            
+            # Create a heatmap for correlations
+            plt.figure(figsize=(8, 4))
+            plt.imshow(correlations.reshape(1, -1), cmap='coolwarm', vmin=-1, vmax=1, aspect='auto')
+            plt.colorbar(label='Correlation (r)')
+            plt.title(f'Correlations for {method} on Residual: No. cells missing {num}', fontsize=12)
+            plt.xticks(np.arange(2), factors[num].columns)
+            plt.yticks([])
+            plt.xlabel(f"{fc} No.")
+            plt.ylabel("Missing Cell Type")
+            plt.ylabel(f'{proportions[num].columns[0]} Proportions')
+            plt.tight_layout()
+        else:
+            # Create a grid of subplots
+            len_row = 6 * num - num
+            len_col = 4 * num - num
+            if num ==2:
+                len_row = len_row + 2
+            fig, axes = plt.subplots(num_rows, num_cols, figsize=(len_row, len_col))
+            fig.suptitle(f'{method} on Residual: No. cells missing {num}, vs. Missing Cell Proportion', fontsize=16)
+
+            # Initialize an array to store correlations
+            correlations = np.zeros((num_rows, num_cols))
+            
+            # Iterate over cell types and factors
+            for i, cell_type in enumerate(proportions[num].columns):
+                for j, factor in enumerate(factors[num].columns):
+                    x = list(proportions[num][cell_type])
+                    y = list(factors[num][factor])
+                    # Use the current subplot for plotting
+                    ax = axes[i, j]
+                    
+                    # Calculate Pearson's correlation coefficient
+                    r, p = stats.pearsonr(x, y)
+                    correlations[i, j] = r
+                    
+                    # Map correlation value to color
+                    color = scalar_map.to_rgba(r)
+                    
+                    # Scatter plot with color based on correlation
+                    ax.scatter(x, y, c=color)
+
+                    ax.set_xlabel(f'{cell_type} Proportions')
+                    ax.set_ylabel(f'{fc} {factor}')
+                    
+                    ax.annotate('r = {:.2f}'.format(r), xy=(0.7, 0.9), xycoords='axes fraction')
+                    # Add a regression line
+                    ax.plot(np.unique(x), np.poly1d(np.polyfit(x, y, 1))(np.unique(x)), color='blue')
+            
+            # Create a colorbar for the scatter plots
+            cax = plt.colorbar(scalar_map, ax=axes.ravel().tolist())
+            cax.set_label('Correlation (r)')
+            
+            # Create a heatmap for correlations
+            plt.figure(figsize=(8, 6))
+            plt.imshow(correlations, cmap='coolwarm', vmin=-1, vmax=1, aspect='auto')
+            plt.colorbar(label='Correlation (r)')
+            plt.title(f'Correlations for {method} on Residual: No. cells missing {num}', fontsize=12)
+            plt.xticks(np.arange(num_cols), factors[num].columns, rotation=90)
+            plt.yticks(np.arange(num_rows), proportions[num].columns)
+            plt.tight_layout(rect=[0, 0, 1, 0.95])
+            plt.xlabel(f"{fc} No.")
+            plt.ylabel("Missing Cell Type")
+        plt.show()
+
 #Fcn to make table of cell proportions
 def make_prop_table(adata, obs):
     num_cell_counter = Counter(adata.obs[obs])
@@ -164,6 +519,183 @@ def make_prop_table(adata, obs):
         'Prop_Cells': prop_cells}
     table = pd.DataFrame(table)
     return table        
+
+#Fcn to compare factors to the missing cell type proportions
+def factors_vs_proportions(factors, proportions, num_missing_cells, method):
+    if method == "PCA":
+        fc = "PC"
+    if method == "SVD":
+        fc = "SVD"
+    if method == "ICA":
+        fc = "IC" 
+    if method == "NMF":
+        fc = "Factor"      
+   #sample compared to each missing celltype proportion
+    # iterate over the number of missing cells
+    for num in num_missing_cells[1:]:
+        #define the number of rows and columns for the grid layout
+        num_rows = len(proportions[num].columns) 
+        num_cols = len(factors[num].columns)
+        if num_rows == 1:
+            #create a single subplot with two separate scatter plots
+            fig, axes = plt.subplots(1, 2, figsize=(14, 5))  #two columns for two factors
+            
+            x = list(proportions[num].iloc[:, 0])  #assuming there's only one cell type
+            correlations = np.zeros(2)  #array to store correlations
+            
+            for j, factor in enumerate(factors[num].columns):
+                y = list(factors[num][factor])
+                ax = axes[j]  # use the current subplot for plotting
+                ax.scatter(x, y, c='lightslategrey')
+                ax.set_xlabel(f'{proportions[num].columns[0]} Proportions')
+                ax.set_ylabel(f'{fc}{factor}')
+                # Calculate and display Pearson's correlation coefficient
+                r, p = stats.pearsonr(x, y)
+                ax.annotate('r = {:.2f}'.format(r), xy=(0.7, 0.9), xycoords='axes fraction')
+                # Add a regression line
+                ax.plot(np.unique(x), np.poly1d(np.polyfit(x, y, 1))(np.unique(x)), color='blue')
+                
+                correlations[j] = r
+            # create a heatmap for correlations
+            plt.figure(figsize=(8, 4))
+            plt.imshow(correlations.reshape(1, -1), cmap='coolwarm', vmin=-1, vmax=1, aspect='auto')
+            plt.colorbar(label='Correlation (r)')
+            plt.title(f'Correlations for {method} on Residual: No. cells missing {num}', fontsize=12)
+            plt.xticks(np.arange(2), factors[num].columns)
+            plt.yticks([])
+            plt.xlabel(f"{fc} No.")
+            plt.ylabel("Missing Cell Type")
+            plt.ylabel(f'{proportions[num].columns[0]} Proportions')
+            plt.tight_layout()
+        else:
+            # create a grid of subplots
+            fig, axes = plt.subplots(num_rows, num_cols, figsize=(15, 10))
+            fig.suptitle(f'{method} on Residual: No. cells missing {num}, vs. Missing Cell Proportion', fontsize=16)
+
+            # initialize an array to store correlations
+            correlations = np.zeros((num_rows, num_cols))
+            
+            # iterate over cell types and factors
+            for i, cell_type in enumerate(proportions[num].columns):
+                for j, factor in enumerate(factors[num].columns):
+                    x = list(proportions[num][cell_type])
+                    y = list(factors[num][factor])
+                    # use the current subplot for plotting
+                    ax = axes[i, j]
+                    # scatter plot
+                    ax.scatter(x, y, c='lightslategrey')
+                    ax.set_xlabel(f'{cell_type} Proportions')
+                    ax.set_ylabel(f'{fc} {factor}')
+                    
+                    #calculate and store Pearson's correlation coefficient
+                    r, p = stats.pearsonr(x, y)
+                    correlations[i, j] = r
+                    ax.annotate('r = {:.2f}'.format(r), xy=(0.7, 0.9), xycoords='axes fraction')
+                    #add a regression line
+                    ax.plot(np.unique(x), np.poly1d(np.polyfit(x, y, 1))(np.unique(x)), color='blue')
+            
+            #create a heatmap for correlations
+            plt.figure(figsize=(8, 6))
+            plt.imshow(correlations, cmap='coolwarm', vmin=-1, vmax=1, aspect='auto')
+            plt.colorbar(label='Correlation (r)')
+            plt.title(f'Correlations for {method} on Residual: No. cells missing {num}', fontsize=12)
+            plt.xticks(np.arange(num_cols), factors[num].columns, rotation=90)
+            plt.yticks(np.arange(num_rows), proportions[num].columns)
+            plt.tight_layout(rect=[0, 0, 1, 0.95])
+            plt.xlabel(f"{fc} No.")
+            plt.ylabel("Missing Cell Type")
+        plt.show()
+        #It is expected that only one column (factor) for each cell type (row) will be postivelly correlated.    
+
+#Fcn to compare factors to the missing cell type expression
+def factors_vs_expression(factors, expression, num_missing_cells, method):
+    if method == "PCA":
+        fc = "PC"
+    if method == "SVD":
+        fc = "SVD"
+    if method == "ICA":
+        fc = "IC" 
+    if method == "NMF":
+        fc = "Factor"      
+   #sample compared to each missing celltype expression
+    # iterate over the number of missing cells
+    # iterate over the number of missing cells
+    for num in num_missing_cells[1:]:
+        res_PCA_df = factors[num]
+        #define the number of rows and columns for the grid layout
+        num_rows = len(expression[num].columns) 
+        num_cols = len(res_PCA_df.columns)
+        
+        if num_rows == 1:
+            #create a single subplot with two separate scatter plots
+            fig, axes = plt.subplots(1, 2, figsize=(14, 5))  #two columns for two Components
+            
+            x = list(expression[num].iloc[:, 0])  #assuming there's only one cell type
+            correlations = np.zeros(2)  #array to store correlations
+            
+            for j, Component in enumerate(res_PCA_df.columns):
+                y = list(res_PCA_df[Component])
+                ax = axes[j]  # use the current subplot for plotting
+                ax.scatter(x, y)
+                ax.set_xlabel(f'{expression[num].columns[0]} Ref. Expression')
+                ax.set_ylabel(f'{fc}{Component}')
+                
+                # Calculate and display Pearson's correlation coefficient
+                r, p = stats.pearsonr(x, y)
+                ax.annotate('r = {:.2f}'.format(r), xy=(0.7, 0.9), xycoords='axes fraction')
+                # Add a regression line
+                ax.plot(np.unique(x), np.poly1d(np.polyfit(x, y, 1))(np.unique(x)), color='red')
+                
+                correlations[j] = r
+            # create a heatmap for correlations
+            plt.figure(figsize=(8, 4))
+            plt.imshow(correlations.reshape(1, -1), cmap='coolwarm', vmin=-1, vmax=1, aspect='auto')
+            plt.colorbar(label='Correlation (r)')
+            plt.title(f'Correlations for {method} on Residual: No. cells missing {num}', fontsize=12)
+            plt.xticks(np.arange(2), res_PCA_df.columns)
+            plt.yticks([])
+            plt.xlabel(f"{fc} No.")
+            plt.ylabel(f"Missing Cell Type: {expression[num].columns[0]}")
+            plt.tight_layout()
+        else:
+            # create a grid of subplots
+            fig, axes = plt.subplots(num_rows, num_cols, figsize=(15, 10))
+            fig.suptitle(f'{method} on Residual: No. cells missing {num}, vs. Missing Cell Expression', fontsize=16)
+
+            # initialize an array to store correlations
+            correlations = np.zeros((num_rows, num_cols))
+            
+            # iterate over cell types and Components
+            for i, cell_type in enumerate(expression[num].columns):
+                for j, Component in enumerate(res_PCA_df.columns):
+                    x = list(expression[num][cell_type])
+                    y = list(res_PCA_df[Component])
+                    # use the current subplot for plotting
+                    ax = axes[i, j]
+                    # scatter plot
+                    ax.scatter(x, y)
+                    ax.set_xlabel(f'{cell_type} Ref. Expression')
+                    ax.set_ylabel(f'{fc}{Component}')
+                    
+                    #calculate and store Pearson's correlation coefficient
+                    r, p = stats.pearsonr(x, y)
+                    correlations[i, j] = r
+                    ax.annotate('r = {:.2f}'.format(r), xy=(0.7, 0.9), xycoords='axes fraction')
+                    #add a regression line
+                    ax.plot(np.unique(x), np.poly1d(np.polyfit(x, y, 1))(np.unique(x)), color='red')
+            
+            #create a heatmap for correlations
+            plt.figure(figsize=(8, 6))
+            plt.imshow(correlations, cmap='coolwarm', vmin=-1, vmax=1, aspect='auto')
+            plt.colorbar(label='Correlation (r)')
+            plt.title(f'Correlations for {method} on Residual: No. cells missing {num}', fontsize=12)
+            plt.xticks(np.arange(num_cols), res_PCA_df.columns, rotation=90)
+            plt.yticks(np.arange(num_rows), expression[num].columns)
+            plt.tight_layout(rect=[0, 0, 1, 0.95])
+            plt.xlabel(f"{fc} No.")
+            plt.ylabel("Missing Cell Type")
+        plt.show()
+    #It is expected that only one column (Component) for each cell type (row) will be postivelly correlated.   
 
 #funtion from https://github.com/greenelab/sc_bulk_ood/blob/main/evaluation_experiments/pbmc/pbmc_experiment_perturbation.ipynb
 def mean_sqr_error(single1, single2):
@@ -197,77 +729,6 @@ def get_pert_transform_vec_PCA(X_full, meta_df, curr_samp, fit):
     proj_train = train_stim_med - train_ctrl_med
     return(proj_train)
 
-def calc_PCA_perturbation(X_full, meta_df, scaler, fit):
-
-    # get the perturbation latent code
-    idx_sc_ref = np.logical_and(meta_df.stim == "CTRL", meta_df.isTraining == "Train")
-    idx_sc_ref = np.logical_and(idx_sc_ref, meta_df.samp_type == "sc_ref")
-    idx_sc_ref = np.logical_and(idx_sc_ref, meta_df.cell_prop_type == "cell_type_specific")
-    idx_sc_ref = np.logical_and(idx_sc_ref, meta_df.sample_id == "1015")
-    idx_sc_ref = np.where(idx_sc_ref)[0]
-    sc_ref_meta_df = meta_df.iloc[idx_sc_ref]
-
-    X_sc_ref = np.copy(X_full)
-    X_sc_ref = X_sc_ref[idx_sc_ref,]
-
-    ## get the transofrmation vectors
-    proj_samp_dict = {}
-    proj_pert_dict = {}
-    start_samps = ['1015'] #['1015', '1256']
-    end_samps = ['1488', '1244', '1016', '101', '1039', '107']
-    for start_samp in start_samps:
-        for end_samp in end_samps:
-            proj_vec = get_samp_transform_vec_PCA(X_full, meta_df, start_samp, end_samp, fit)
-            proj_samp_dict[f"{start_samp}_{end_samp}"] = proj_vec
-    for curr_samp in end_samps:
-        proj_vec = get_pert_transform_vec_PCA(X_full, meta_df, curr_samp, fit)
-        proj_pert_dict[curr_samp] = proj_vec
-
-
-    # now get the refernce sample that we will use to do all projectsions
-    single_decoded_0_0 = fit.transform(X_sc_ref)
-    single_decoded_0_1 = np.copy(single_decoded_0_0)
-
-    # do the projections
-    decoded_0_0 = None
-    decoded_0_1 = None
-    final_meta_df = None
-    for curr_samp_end in end_samps:
-        curr_decoded_0_0 = single_decoded_0_0.copy()
-        curr_decoded_0_1 = single_decoded_0_1.copy()
-        curr_meta_df = sc_ref_meta_df.copy()
-        for curr_idx in range(X_sc_ref.shape[0]):
-            # project for each initial sample
-            curr_samp_start = curr_meta_df.iloc[curr_idx].sample_id
-            # project to sample
-            proj_samp_vec = proj_samp_dict[f"{curr_samp_start}_{curr_samp_end}"]
-            # project to perturbation
-            proj_pert_vec = proj_pert_dict[curr_samp_end]
-
-            curr_decoded_0_0[curr_idx] = curr_decoded_0_0[curr_idx] + proj_samp_vec
-            curr_decoded_0_1[curr_idx] = curr_decoded_0_0[curr_idx] + proj_pert_vec
-            curr_meta_df.iloc[curr_idx].sample_id = curr_samp_end
-            curr_meta_df.iloc[curr_idx].isTraining = "Test"
-
-        ### append new df
-        if final_meta_df is None:
-            decoded_0_0 = curr_decoded_0_0
-            decoded_0_1 = curr_decoded_0_1
-            final_meta_df = curr_meta_df
-        else:
-            decoded_0_0 = np.append(decoded_0_0, curr_decoded_0_0, axis=0)
-            decoded_0_1 = np.append(decoded_0_1, curr_decoded_0_1, axis=0)
-            final_meta_df = final_meta_df.append(curr_meta_df)
-
-
-    decoded_0_1 = fit.inverse_transform(decoded_0_1)
-    decoded_0_1 = scaler.inverse_transform(decoded_0_1)
-
-    decoded_0_0 = fit.inverse_transform(decoded_0_0)
-    decoded_0_0 = scaler.inverse_transform(decoded_0_0)
-
-    return (final_meta_df, decoded_0_0, decoded_0_1)
-
 # for each sample calculate the transformation / projection in PCA space
 def get_pca_for_plotting(encodings):
 
@@ -300,7 +761,7 @@ def plot_pca(plot_df, color_vec, ax, title="", alpha=0.1):
 
 #get tsne projection
 def get_tsne_for_plotting(encodings):
-    tsne = TSNE(n_components=2, verbose=1, perplexity=20, n_iter=500)
+    tsne = TSNE(n_components=2, verbose=1, perplexity=30, n_iter=500)
     tsne_results = tsne.fit_transform(encodings)
 
     plot_df = pd.DataFrame(tsne_results[:,0:2])
@@ -326,29 +787,27 @@ def plot_tsne(plot_df, color_vec, ax, title=""):
     ax.set_title(title)
     return g
 
-import umap
-def get_umap_for_plotting(encodings):
-    fit = umap.UMAP()
-    umap_results = fit.fit_transform(encodings)
 
-    plot_df = pd.DataFrame(umap_results[:,0:2])
-    print(umap_results.shape)
-    print(plot_df.shape)
-    plot_df.columns = ['umap_0', 'umap_1']
-    return plot_df
+#Funct. adapted from:
+# https://bbquercus.medium.com/adding-statistical-significance-asterisks-to-seaborn-plots-9c8317383235
+#to convert p value to number of asterisks in plots
+def convert_pvalue_to_asterisks(pvalue):
+    if pvalue <= 0.0001:
+        return "****"
+    elif pvalue <= 0.001:
+        return "***"
+    elif pvalue <= 0.01:
+        return "**"
+    elif pvalue <= 0.05:
+        return "*"
+    return "ns"
 
-def plot_umap(plot_df, color_vec, ax, title="", alpha=0.3):
-
-    plot_df['Y'] = color_vec
-
-    g = sns.scatterplot(
-        x="umap_0", y="umap_1",
-        data=plot_df,
-        hue="Y",
-        palette=sns.color_palette("hls", len(np.unique(color_vec))),
-        legend="full",
-        alpha=alpha, ax= ax
-    )
-
-    ax.set_title(title)
-    return g
+#fcn to extract proportions from each adata and remove cell types that are not frequent
+def get_prop(adata):
+    props = make_prop_table(adata, "cell_types")
+    idx_total = props[ (props['Cell_Types'] == 'Total')].index
+    props = props.drop(idx_total, inplace=False)
+    props = props.sort_values(by='Cell_Types')
+    props = props.set_index('Cell_Types')
+    print(props)
+    return props, adata    
