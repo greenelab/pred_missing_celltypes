@@ -34,6 +34,10 @@ import os
 import pickle
 from pathlib import Path
 
+def capitalize_first_letters(strings):
+    '''Capitalize the first letter of array of strings'''
+    return [s.capitalize() for s in strings]
+
 #funct to calculate RMSE
 def rmse(y, y_pred):
     # Ensure both y and y_pred are 2D arrays with the same shape
