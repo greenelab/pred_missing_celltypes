@@ -380,6 +380,52 @@ def calc_nnls(all_refs, prop_df, pseudo_df, num_missing_cells, cells_to_miss):
 
     return calc_prop_tot, calc_res_tot, custom_res_tot, comparison_prop_tot, missing_cell_tot     
 
+#helper function to calculate nnls and residual from the HGSOC samples
+def calc_nnls_hgsoc(all_refs, prop_df, pseudo_df, num_missing_cells):
+
+    '''Calculate NNLS Deconvolution of HGSOC samples (8 total)'''
+
+    calc_prop_tot = pd.DataFrame()
+    calc_res_tot = pd.DataFrame()
+    custom_res_tot = pd.DataFrame()
+    comparison_prop_tot = pd.DataFrame()
+    missing_cell_tot = pd.DataFrame()
+
+    for idx, bulk in pseudo_df.iterrows():
+
+        calc_prop_all = pd.DataFrame()
+        custom_res_all = pd.DataFrame()
+        calc_res_all  = pd.DataFrame()
+
+        print(f"Sample No.:{idx}")
+
+        #extracting reference with missing cells 
+        ref = all_refs.values
+
+        #using SC reference with each matching bulk
+        calc_prop, calc_res = nnls(ref, bulk.values)
+
+        #putting values in proportion format
+        tot = np.sum(calc_prop) #putting them in proportion format
+        calc_prop = calc_prop / tot
+
+        #putting together
+        calc_prop_all = pd.concat([pd.DataFrame(calc_prop_all), pd.DataFrame(calc_prop)])
+        calc_res_all  = np.append(calc_res_all, calc_res)
+            
+        #attaching to dataframes
+        calc_prop_tot[idx] = calc_prop_all
+        calc_prop_tot[idx].columns = all_refs.columns
+        calc_prop_tot[idx].index = range(0,len(calc_prop_tot[idx]))
+        calc_res_tot[idx] = calc_res_all
+
+
+    calc_prop_tot = calc_prop_tot.T
+    cals_res_tot = calc_res_tot.T
+    calc_prop_tot.columns = all_refs.columns
+
+    return calc_prop_tot, calc_res_tot
+
 # Function to compare factors to the missing cell type proportions
 def factors_vs_proportions_heatmaps(factors, proportions, num_missing_cells, method):   
     if method == "PCA":
