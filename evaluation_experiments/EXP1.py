@@ -30,10 +30,14 @@ nmf_cut_value = "minimum_value"
 
 ####################################################################################################
 # #Excecuting notebook with 5 cell types and all noise.
+
 data = "snadp"
 bulkprop_type = ""
 num_missing_cells = [0,1,2,3]
 csx_file = "MCT_snadp_EXP1_0_cibersort_sig.tsv"
+
+# 10 bulks
+num_bulks_total = 10
 
 noise_type = "5CTnonoise"
 pm.execute_notebook(
@@ -45,5 +49,35 @@ pm.execute_notebook(
    random_seed = rs, num_missing_cells = num_missing_cells, num_samples = num_s, nmf_cut = nmf_cut_value, 
    kernel_name = ker)
 )
+
+# 100 bulks
+num_bulks_total = 100
+
+noise_type = "5CTnonoise"
+pm.execute_notebook(
+   in_nb,
+   f'{results_path}/EXP1_eval_{data}_{noise_type}.ipynb', kernel_name= ker,
+   parameters=dict( res_name = f"MCT_{data}_EXP1", pseudo_name = f"MCT_{data}_EXP1_{noise_type}", 
+   files_path = "/data/EXP1/", noise_type =noise_type,
+   cibersort_files = f"/data/EXP1/cibersort_results/{csx_file}",
+   random_seed = rs, num_missing_cells = num_missing_cells, num_samples = num_s, nmf_cut = nmf_cut_value, 
+   kernel_name = ker)
+)
+
+
+# 1000 bulks
+num_bulks_total = 1000
+
+noise_type = "5CTnonoise"
+pm.execute_notebook(
+   in_nb,
+   f'{results_path}/EXP1_eval_{data}_{noise_type}.ipynb', kernel_name= ker,
+   parameters=dict( res_name = f"MCT_{data}_EXP1", pseudo_name = f"MCT_{data}_EXP1_{noise_type}", 
+   files_path = "/data/EXP1/", noise_type =noise_type,
+   cibersort_files = f"/data/EXP1/cibersort_results/{csx_file}",
+   random_seed = rs, num_missing_cells = num_missing_cells, num_samples = num_s, nmf_cut = nmf_cut_value, 
+   kernel_name = ker)
+)
+
 
 ###################################################################################################
