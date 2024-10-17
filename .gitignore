@@ -2,6 +2,9 @@
 .huskyrc.json
 out
 log.log
+*.pkl
+*.h5ad
+*.gz
 **/node_modules
 *.pyc
 *.vsix
