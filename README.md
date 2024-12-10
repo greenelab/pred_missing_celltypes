@@ -67,7 +67,19 @@ The following outline describes each file and the rough outline in which the scr
 - `/preprocessing/EXP4_preprocessing.ipynb`
     - Preprocess and QCs single-cell  and bulk data from HGSOC.
 - `/exploratory_experiments/EXP4_eval.ipynb`
-    - NNLS deconvolution and analysis of dissociated and classic bulks.   
+    - NNLS deconvolution and analysis of dissociated and classic bulks.
+   
+## EXP5: Real bulks of HGSOC deconvolved with NNLS, with Added Adipocytes
+- `/preprocessing/EXP4_preprocessing.ipynb`
+    - Preprocess and QCs single-cell  and bulk data from HGSOC.
+- `/exploratory_experiments/EXP5_eval.ipynb`
+    - NNLS deconvolution and analysis of dissociated and classic bulks, with added cells to reference.
+
+## EXP6: Real bulks of Adipose Tissue, deconvolved with NNLS. Uses both scRNA-seq and snRNA-seq.
+- `/preprocessing/EXP3_pseudos_snadp.ipynb`
+    - Preprocess and creates pseudobulks from white adipose tissue of single-nucleus and single-cell data.
+- `/exploratory_experiments/EXP6_eval.ipynb`
+    - NNLS deconvolution and analysis of real bulks, with single cell and single nucleus RNA seq as reference.
 
 ## Setting up the Conda Environment
 
