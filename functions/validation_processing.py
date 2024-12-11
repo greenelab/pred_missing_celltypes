@@ -35,6 +35,47 @@ import os
 import pickle
 from pathlib import Path
 
+#helper function to calculate nnls and residual from the adipose samples
+def calc_nnls_adipose(all_refs, pseudo_df):
+
+    '''Calculate NNLS Deconvolution of Adipose Tissue samples (43 total)'''
+
+    calc_prop_tot = pd.DataFrame()
+    calc_res_tot = pd.DataFrame()
+
+    for idx, bulk in pseudo_df.iterrows():
+
+        calc_prop_all = pd.DataFrame()
+        calc_res_all  = pd.DataFrame()
+
+        print(f"Sample No.:{idx}")
+
+        #extracting reference with missing cells 
+        ref = all_refs.values
+
+        #using SC reference with each matching bulk
+        calc_prop, calc_res = nnls(ref, bulk.values)
+
+        #putting values in proportion format
+        tot = np.sum(calc_prop) #putting them in proportion format
+        calc_prop = calc_prop / tot
+
+        #putting together
+        calc_prop_all = pd.concat([pd.DataFrame(calc_prop_all), pd.DataFrame(calc_prop)])
+        calc_res_all  = np.append(calc_res_all, calc_res)
+            
+        #attaching to dataframes
+        calc_prop_tot[idx] = calc_prop_all
+        calc_prop_tot[idx].columns = all_refs.columns
+        calc_prop_tot[idx].index = range(0,len(calc_prop_tot[idx]))
+        calc_res_tot[idx] = calc_res_all
+
+
+    calc_prop_tot = calc_prop_tot.T
+    calc_prop_tot.columns = all_refs.columns
+
+    return calc_prop_tot, calc_res_tot
+
 def capitalize_first_letters(strings):
     """
     Capitalizes the first letter of each string in a list of strings.
@@ -124,7 +165,7 @@ def factors_vs_proportions_rmse(factors,
         if num_rows == 1:
             # Create a single subplot with two separate scatter plots
             fig, axes = plt.subplots(1, 2, figsize=(18, 8))  # Two columns for two factors
-            fig.suptitle(f'{method} on Residual: {num} Missing Cell {num} vs. Missing Cell Proportion', fontsize=22, y=0.95)
+            fig.suptitle(f'{method} on Residual: {num} Missing Cell {num} vs. Missing Cell Proportion', fontsize=26, y=0.95)
             x = list(proportions[num].iloc[:, 0])  # Assuming there's only one cell type
             correlations = np.zeros(2)  # Array to store correlations
             fig.patch.set_facecolor('white')
@@ -142,18 +183,18 @@ def factors_vs_proportions_rmse(factors,
                 color = scalar_map.to_rgba(r)
 
                 # Scatter plot with color based on correlation
-                ax.scatter(x, y, c='dimgrey', alpha=0.7)
-                ax.set_xlabel(f'{proportions[num].columns[0]} Proportions', fontsize=16)
-                ax.set_ylabel(f'{fc} {factor}', fontsize=16, labelpad = 0.5)
+                ax.scatter(x, y, c='dimgrey', alpha=0.7, s=140)
+                ax.set_xlabel(f'{proportions[num].columns[0]} Proportions', fontsize=18)
+                ax.set_ylabel(f'{fc} {factor}', fontsize=20, labelpad = 0.5)
                 ax.patch.set_facecolor(color)
                 ax.patch.set_alpha(1)
                 ax.annotate('RMSE = {:.2f}'.format(rmse_value), xy=(0.5, 0.9), xycoords='axes fraction',
-                            ha='center', va='center', fontsize=16, fontweight='bold')
+                            ha='center', va='center', fontsize=20, fontweight='bold')
                 if plot_r:
                     ax.annotate('r = {:.2f}'.format(r), xy=(0.5, 0.85), xycoords='axes fraction',
-                                ha='center', va='center', fontsize=16, fontweight='bold')
+                                ha='center', va='center', fontsize=20, fontweight='bold')
 
-                ax.tick_params(axis='both', which='major', labelsize=12)
+                ax.tick_params(axis='both', which='major', labelsize=16)
                 
                 # Use MaxNLocator to set a maximum number of ticks
                 ax.xaxis.set_major_locator(MaxNLocator(nbins=5))  # Set max 5 ticks on x-axis
@@ -161,8 +202,8 @@ def factors_vs_proportions_rmse(factors,
 
             # Create a colorbar for the scatter plot
             cax = plt.colorbar(scalar_map, ax=axes.ravel().tolist(), alpha=1, pad=0.01)
-            cax.set_label("Pearson's Correlation (r)", fontsize=18)
-            cax.ax.tick_params(size=3, labelsize=12)
+            cax.set_label("Pearson's Correlation (r)", fontsize=22)
+            cax.ax.tick_params(size=3, labelsize=16)
             cax.set_alpha(0.4)
         else:
             # Create a grid of subplots
@@ -172,7 +213,7 @@ def factors_vs_proportions_rmse(factors,
                 len_row = len_row + 2
             fig, axes = plt.subplots(num_rows, num_cols, figsize=(len_row + 10, len_col + 6))
             fig.suptitle(f'{method} on Residual: {num} Missing Cells {num} vs. Missing Cells Proportion', 
-                         fontsize=22, y=0.93)  # Adjust the title spacing
+                         fontsize=24, y=0.93)  # Adjust the title spacing
             fig.patch.set_facecolor('white')
             fig.patch.set_alpha(1)
             fig.subplots_adjust(hspace=0.4, wspace=0.4)
@@ -196,22 +237,22 @@ def factors_vs_proportions_rmse(factors,
                     # Calculate RMSE
                     rmse_value = rmse(x, y)
                     # Scatter plot with color based on correlation
-                    ax.scatter(x, y, c='dimgrey', alpha=0.7)
+                    ax.scatter(x, y, c='dimgrey', alpha=0.7, s=140)
                     if len(cell_type) < 8:
-                        ax.set_xlabel(f'{cell_type} Proportions', fontsize=16)
+                        ax.set_xlabel(f'{cell_type} Proportions', fontsize=20)
                     else:
                         # Adding a new line
-                        ax.set_xlabel(f'{cell_type}\nProportions', fontsize=16)
-                    ax.set_ylabel(f'{fc} {factor}', fontsize=16, labelpad=0.5)
+                        ax.set_xlabel(f'{cell_type}\nProportions', fontsize=20)
+                    ax.set_ylabel(f'{fc} {factor}', fontsize=18, labelpad=0.5)
                     ax.patch.set_facecolor(color)
                     ax.patch.set_alpha(1)
-                    ax.annotate('RMSE = {:.2f}'.format(rmse_value), xy=(0.5, 0.9), xycoords='axes fraction',
-                                ha='center', va='center', fontsize=12, fontweight="bold")
+                    ax.annotate('RMSE = {:.2f}'.format(rmse_value), xy=(0.5, 0.93), xycoords='axes fraction',
+                                ha='center', va='center', fontsize=18, fontweight="bold")
                     if plot_r:
                         ax.annotate('r = {:.2f}'.format(r), xy=(0.5, .85), xycoords='axes fraction',
-                                    ha='center', va='center', fontsize=12, fontweight='bold')
+                                    ha='center', va='center', fontsize=18, fontweight='bold')
 
-                    ax.tick_params(axis='both', which='major', labelsize=12)
+                    ax.tick_params(axis='both', which='major', labelsize=16)
 
                     # Use MaxNLocator to set a maximum number of ticks
                     ax.xaxis.set_major_locator(MaxNLocator(nbins=5))  # Set max 5 ticks on x-axis
@@ -223,8 +264,8 @@ def factors_vs_proportions_rmse(factors,
             else:
                 bar_pad = 0.01
             cax = plt.colorbar(scalar_map, ax=axes.ravel().tolist(), alpha=1, pad=bar_pad)
-            cax.set_label("Pearson's Correlation (r)", fontsize=18)
-            cax.ax.tick_params(size=3, labelsize=12)
+            cax.set_label("Pearson's Correlation (r)", fontsize=22)
+            cax.ax.tick_params(size=3, labelsize=16)
             cax.set_alpha(1)
 
 def factors_vs_proportions_heatmaps_real(factors, proportions, num, method, rmse_plot):
