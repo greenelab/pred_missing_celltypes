@@ -2,6 +2,9 @@
 .huskyrc.json
 out
 log.log
+*.pkl
+*.h5ad
+*.gz
 **/node_modules
 *.pyc
 *.vsix
@@ -120,3 +123,82 @@ results/EXP2/selected_cells/EXP2_bayesprism_pbmc_predicted.txt
 results/EXP2/selected_cells/EXP2_bayesprism_pbmc_real.txt
 results/EXP2/selected_cells/EXP2_cibersortx_pbmc_predicted.txt
 results/EXP2/selected_cells/EXP2_cibersortx_pbmc_real.txt
+    data/EXP1/MCT_pbmc_EXP2_adata_scaden.txt
+    data/EXP1/cibersort/
+    data/EXP1/cibersort_results/
+    data/EXP1/pbmc3k/
+    data/EXP2/BP_results/
+    data/EXP2/BayesPrism/
+    data/EXP2/MCT_pbmc_EXP2_adata_scaden.txt
+    data/EXP2/SC3_v3_NextGem_SI_PBMC_10K_filtered_feature_bc_matrix.tar
+    data/EXP2/cibersort/
+    data/EXP2/cibersort_results/
+    data/EXP2/scaden/
+    data/EXP3/BP_results/
+    data/EXP3/BayesPrism/
+    data/EXP3/Hs.metadata.tsv
+    data/EXP3/MCT_adp_EXP3_2missing_realisticprop_noise_prop.csv
+    data/EXP3/MCT_adp_EXP3_2missing_realisticprop_noise_proprebal.csv
+    data/EXP3/cibersort/
+    data/EXP3/cibersort_results/
+    data/EXP4/CellMarker.csv
+    data/EXP4/MCT_hgsoc_EXP4_bulks.csv
+    data/EXP4/MCT_hgsoc_EXP4_dissociated_bulks.csv
+    data/EXP4/MCT_hgsoc_EXP4_dissociatedpolyA_bulks.csv
+    data/EXP4/MCT_hgsoc_EXP4_dissociatedpolya_bulks.csv
+    data/EXP4/MCT_hgsoc_EXP4_real_1missing_signal.txt
+    data/EXP4/MCT_hgsoc_EXP4_real_2missing_signal.txt
+    data/EXP4/MCT_hgsoc_EXP4_real_3missing_signal.txt
+    data/EXP4/MCT_hgsoc_EXP4_real_4missing_signal.txt
+    data/EXP4/MCT_hgsoc_EXP4_real_5missing_signal.txt
+    data/EXP4/MCT_hgsoc_EXP4_real_6missing_signal.txt
+    data/EXP4/MCT_hgsoc_EXP4_real_7missing_signal.txt
+    data/EXP4/MCT_hgsoc_EXP4_real_8missing_signal.txt
+    data/EXP4/MCT_hgsoc_EXP4_real_mixture.txt
+    data/EXP4/bulk/
+    data/EXP4/bulk_dissociated/
+    data/EXP4/bulk_dissociated_polyA/
+    data/EXP4/cibersort/
+    data/EXP4/cibersort_results/
+    data/EXP4/gene_maps.csv
+    data/EXP4/merged_bulks.csv
+    data/EXP4/merged_bulks_bygene.csv
+    data/EXP4/meta_bulks.csv
+    data/EXP4/single_cell/
+    environment/env_buddi.yml
+    evaluation_experiments/EXP2_scaden.sh
+    evaluation_experiments/EXP4_hgsoc_BayesPrism.R
+    evaluation_experiments/EXP5_eval.ipynb
+    evaluation_experiments/EXP5_eval_.ipynb
+    evaluation_experiments/error_SCADEN_EXP2.log
+    evaluation_experiments/output_SCADEN_EXP2.log
+    preprocessing/EXP5_HGSOC_fastq_processing/
+    preprocessing/figures/
+    results/EXP2EXP2_NNLS_pbmc_predicted.txt
+    results/EXP2EXP2_NNLS_pbmc_real.txt
+    results/EXP3/EXP3_NNLS_adp_random_noise_predicted.txt
+    results/EXP3/EXP3_NNLS_adp_random_noise_real.txt
+    results/EXP3/EXP3_NNLS_adp_random_nonoise_predicted.txt
+    results/EXP3/EXP3_NNLS_adp_random_nonoise_real.txt
+    results/EXP3/EXP3_NNLS_adp_realistic_noise_predicted.txt
+    results/EXP3/EXP3_NNLS_adp_realistic_noise_real.txt
+    results/EXP3/EXP3_NNLS_adp_realistic_nonoise_predicted.txt
+    results/EXP3/EXP3_NNLS_adp_realistic_nonoise_real.txt
+    results/EXP3/EXP3_bayesprism_adp_random_noise_predicted.txt
+    results/EXP3/EXP3_bayesprism_adp_random_noise_real.txt
+    results/EXP3/EXP3_bayesprism_adp_random_nonoise_predicted.txt
+    results/EXP3/EXP3_bayesprism_adp_random_nonoise_real.txt
+    results/EXP3/EXP3_bayesprism_adp_realistic_noise_predicted.txt
+    results/EXP3/EXP3_bayesprism_adp_realistic_noise_real.txt
+    results/EXP3/EXP3_bayesprism_adp_realistic_nonoise_predicted.txt
+    results/EXP3/EXP3_bayesprism_adp_realistic_nonoise_real.txt
+    results/EXP3/EXP3_cibersortx_adp_random_noise_predicted.txt
+    results/EXP3/EXP3_cibersortx_adp_random_noise_real.txt
+    results/EXP3/EXP3_cibersortx_adp_random_nonoise_predicted.txt
+    results/EXP3/EXP3_cibersortx_adp_random_nonoise_real.txt
+    results/EXP3/EXP3_cibersortx_adp_realistic_noise_predicted.txt
+    results/EXP3/EXP3_cibersortx_adp_realistic_noise_real.txt
+    results/EXP3/EXP3_cibersortx_adp_realistic_nonoise_predicted.txt
+    results/EXP3/EXP3_cibersortx_adp_realistic_nonoise_real.txt
+    results/EXP4/NMF_genes_residuals_bulks.xlsx
+    results/EXP5/
