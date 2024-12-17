@@ -340,27 +340,27 @@ def factors_vs_proportions_heatmaps_real(factors, proportions, num, method, rmse
             # Scatter plot with color based on correlation
             ax.scatter(x, y, c='dimgrey', alpha=0.7)
             if len(cell_type) < 8:
-                ax.set_xlabel(f'{cell_type} Proportions',fontsize=22)
+                ax.set_xlabel(f'{cell_type} Proportions',fontsize=24)
             else:
                 formatted_label = '\n'.join(cell_type.split())   
-                ax.set_xlabel(f'{formatted_label} Proportions',fontsize=22)
-            ax.set_ylabel(f'{fc} {factor}', fontsize=22, labelpad = 0.6)
-            ax.set_xlabel(f'{proportions[num].columns[0]} Proportions', fontsize=22, labelpad = 0.6)
+                ax.set_xlabel(f'{formatted_label} Proportions',fontsize=24)
+            ax.set_ylabel(f'{fc} {factor}', fontsize=24, labelpad = 0.6)
+            ax.set_xlabel(f'{proportions[num].columns[0]} Proportions', fontsize=24, labelpad = 0.6)
             ax.patch.set_facecolor(color)
             ax.patch.set_alpha(1)
-            ax.tick_params(axis='both', which='major', labelsize=12)
+            ax.tick_params(axis='both', which='major', labelsize=14)
             #only show RMSE if relevant:
             if rmse_plot:
                 # Calculate RMSE
                 rmse_value = vp.rmse(x, y)
                 ax.annotate('RMSE = {:.2f}'.format(rmse_value),xy=(0.5, 0.9), xycoords='axes fraction',
-                        ha='center', va='center', fontsize=18, fontweight = 'bold')
+                        ha='center', va='top', fontsize=30, fontweight = 'bold')
             ax.annotate('r = {:.2f}'.format(r), xy=(0.5, .82), xycoords='axes fraction',
-                                    ha='center', va='center', fontsize=18, fontweight='bold')
+                                    ha='center', va='top', fontsize=30, fontweight='bold')
         # Create a colorbar for the scatter plot
         cax = plt.colorbar(scalar_map, ax=axes.ravel().tolist(), alpha=1, pad=0.01)
-        cax.set_label("Pearson's Correlation (r)", fontsize=22)
-        cax.ax.tick_params(size=3, labelsize=12)
+        cax.set_label("Pearson's Correlation (r)", fontsize=32)
+        cax.ax.tick_params(size=3, labelsize=16)
         cax.set_alpha(0.4)
     else:
         # Create a grid of subplots
@@ -391,29 +391,28 @@ def factors_vs_proportions_heatmaps_real(factors, proportions, num, method, rmse
                 color = scalar_map.to_rgba(r)
                 # Scatter plot with color based on correlation
                 ax.scatter(x, y, c='dimgrey', alpha=0.7)
-                ax.set_xlabel(f'{cell_type} Proportions',fontsize=22)
-                ax.set_ylabel(f'{fc} {factor}',fontsize=22, labelpad = 0.6)
-                ax.set_ylabel(f'{fc} {factor}', fontsize=22, labelpad = 0.6)
+                ax.set_xlabel(f'{cell_type} Proportions',fontsize=24)
+                ax.set_ylabel(f'{fc} {factor}',fontsize=24, labelpad = 0.6)
                 ax.patch.set_facecolor(color)
                 ax.patch.set_alpha(1)
-                ax.tick_params(axis='both', which='major', labelsize=12)
+                ax.tick_params(axis='both', which='major', labelsize=16)
                 #only show RMSE if relevant:
                 if rmse_plot:
                     # Calculate RMSE
                     rmse_value = rmse(x, y)
                     ax.annotate('RMSE = {:.2f}'.format(rmse_value),xy=(0.5, 0.9), xycoords='axes fraction',
-                            ha='center', va='center', fontsize=18, fontweight = 'bold')         
+                            ha='center', va='top', fontsize=30, fontweight = 'bold')         
                 ax.annotate('r = {:.2f}'.format(r), xy=(0.5, .82), xycoords='axes fraction',
-                                    ha='center', va='center', fontsize=18, fontweight='bold')       
+                                    ha='center', va='top', fontsize=30, fontweight='bold')       
         # Create a colorbar for the scatter plots
         if num > 3:
             bar_pad = 0.02
         else:
             bar_pad =0.01
         cax = plt.colorbar(scalar_map, ax=axes.ravel().tolist(), alpha=1, pad=bar_pad)
-        cax.set_label("Pearson's Correlation (r)", fontsize=18)
+        cax.set_label("Pearson's Correlation (r)", fontsize=28)
         cax.set_alpha(1)
-        cax.ax.tick_params(size=3, labelsize=12)
+        cax.ax.tick_params(size=3, labelsize=20)
 
 def select_bulks(bulk_type, num_bulks_touse, num_idx_total, res_name, path, bulk_range, rs):
 
